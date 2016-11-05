@@ -1,7 +1,6 @@
 /*
-* Pacman2 程序 V1.1
+* Pacman2 程序 V2.0
 * 作者：NanoApe
-* 在 V1.0 的基础上修补了几个 Bug
 *
 * 【命名惯例】
 *  r/R/y/Y：Row，行，纵坐标
@@ -38,11 +37,10 @@
 
 #define FIELD_MAX_HEIGHT 20
 #define FIELD_MAX_WIDTH 20
-#define MAX_GENERATOR_COUNT 4 // 每个象限1
+#define MAX_GENERATOR_COUNT 4
 #define MAX_PLAYER_COUNT 4
 #define MAX_TURN 100
 
-// 你也可以选用 using namespace std; 但是会污染命名空间
 using std::string;
 using std::swap;
 using std::cin;
@@ -51,10 +49,11 @@ using std::endl;
 using std::getline;
 using std::runtime_error;
 
+// 随机数调整
 #ifdef _BOTZONE_ONLINE
 	unsigned int RR = time(0);
 #else
-	unsigned int RR = 1477830999;
+	unsigned int RR = 1478325354;
 #endif
 
 inline double Rand()
@@ -63,11 +62,9 @@ inline double Rand()
 	return 1.0 * RR / (long long)0xFFFFFFFF;
 }
 
-int SkillCost, Intesval;
-
 string data, globalData; // 这是回合之间可以传递的信息
 
-// 平台提供的吃豆人相关逻辑处理程序
+// 平台提供的吃豆人相关逻辑处理程序（直接照搬
 namespace Pacman
 {
 	const time_t seed = RR;
@@ -835,22 +832,39 @@ namespace Pacman
 	bool GameField::constructed = false;
 }
 
+Pacman::GameField gameField;
+
+int h, w, myID, SkillCost, Interval; bool danger;
+
 #define rep(i, l, r) for(int i=l; i<=r; i++)
 #define dow(i, l, r) for(int i=l; i>=r; i--)
+#define clr(x, c) memset(x, c, sizeof(x))
 #define fi first
 #define se second
 
 typedef std::pair<double,double> Pdd;
 typedef std::pair<int,int> Pii;
 
-bool danger; int h, w;
-
 #include <cmath>
 #include <sstream>
 
 inline int inc(int a, int b){return (a+1)%b;}
 inline int dec(int a, int b){return (a-1+b)%b;}
+inline Pacman::Direction v(int a)
+{
+	if (a == 7) return Pacman::shootLeft;
+	if (a == 6) return Pacman::shootDown;
+	if (a == 5) return Pacman::shootRight;
+	if (a == 4) return Pacman::shootUp;
+	if (a == 3) return Pacman::left;
+	if (a == 2) return Pacman::down;
+	if (a == 1) return Pacman::right;
+	if (a == 0) return Pacman::up;
+	return Pacman::stay;
+}
 
+
+//字符串流输出
 inline void Di(int a)
 {
 	std::stringstream ss;
@@ -872,7 +886,6 @@ inline void Dd(double a)
 inline void Ds(string a){globalData += a + ' ';}
 inline void Dn(){globalData += '\n';}
 
-int myID;
 
 struct Pro {double d[5];} emptyPro;
 
@@ -882,26 +895,11 @@ inline bool RandomChoose(double a)
 	double b = Rand(); 
 	return b <= a;
 }
-
 inline double Between(double a, double b, double c) 
 {
 	if (a == b) return 0.5;
 	return (erf(((c-a)/(b-a)*2-1)*2)+1)/2;
 }
-
-inline Pacman::Direction v(int a)
-{
-	if (a == 7) return Pacman::shootLeft;
-	if (a == 6) return Pacman::shootDown;
-	if (a == 5) return Pacman::shootRight;
-	if (a == 4) return Pacman::shootUp;
-	if (a == 3) return Pacman::left;
-	if (a == 2) return Pacman::down;
-	if (a == 1) return Pacman::right;
-	if (a == 0) return Pacman::up;
-	return Pacman::stay;
-}
-
 inline Pacman::Direction RandDir(Pro a)
 {
 	double All = 0;
@@ -912,7 +910,6 @@ inline Pacman::Direction RandDir(Pro a)
 	rep(i, 0, 4) if (tmp <= a.d[i]) return v(i-1); else tmp -= a.d[i];
 	return v(-1);
 }
-
 inline Pacman::Direction RandDirOne(Pro a)
 {
 	int mx = -1;
@@ -920,13 +917,7 @@ inline Pacman::Direction RandDirOne(Pro a)
 	
 	return v(mx-1);
 }
-
-#include <queue>
-#define inf 0x3fffffff
-
-int Short[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], Wall[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
-int lb_0[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], lb_1[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], mn_0[200], mn_1[200];
-std::queue <Pii> q;
+inline double Poss(int a, int b){return 1.0*a/(a+b);}
 
 inline Pii GO(Pii a, int d)
 {
@@ -937,10 +928,131 @@ inline Pii GO(Pii a, int d)
 	return a;
 }
 
-inline void WallMap(Pacman::GameField &gameField)
+// Value
+
+#include <queue>
+#define inf 0x3fffffff
+
+int BeanBlock[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], H[409];
+
+int Head(int x){return x==H[x]?x:(H[x]=Head(H[x]));}
+inline void Union(int a, int b){a=Head(a); b=Head(b); if (a!=b) H[b] = a;}
+inline void Block()
 {
-	rep(i, 0, h-1) rep(j, 0, w-1) Short[i][j] = inf, Wall[i][j] = inf;
-	rep(i, 0, 3) if (i != myID && !gameField.players[i].dead && Short[gameField.players[i].row][gameField.players[i].col]!=0 && gameField.players[i].strength >= 6)
+	int lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], Sz[409], tmp_block, Short[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+	std::queue <Pii> q;
+	clr(Sz,0); clr(lb,0); tmp_block = 0;
+	
+	rep(i, 0, h-1) rep(j, 0, w-1) if (gameField.fieldStatic[i][j] & 16) 
+		rep(a, -1, 1) rep(b, -1, 1) if (a!=0 || b!=0) 
+			++tmp_block, H[lb[(i+a+h)%h][(j+b+w)%w] = tmp_block] = tmp_block;
+	rep(i, 0, h-1) rep(j, 0, w-1) if (lb[i][j])
+	{
+		rep(a, 0, h-1) rep(b, 0, w-1) Short[a][b] = inf;
+		q.push(Pii(i,j)), Short[i][j] = 0;
+		while (!q.empty())
+		{
+			Pii a = q.front(); q.pop(); int v = Short[a.fi][a.se];
+			if (lb[a.fi][a.se]) Union(lb[i][j], lb[a.fi][a.se]);
+			if (v == 3) continue;
+			rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0) 
+			{
+				a = GO(a, d); 
+				if (Short[a.fi][a.se] == inf) q.push(a), Short[a.fi][a.se] = v+1;
+				a = GO(a, d^2);
+			}
+		}
+	}
+	rep(i, 1, tmp_block) Sz[Head(i)]++;
+	rep(i, 0, h-1) rep(j, 0, w-1) BeanBlock[i][j] = Sz[H[lb[i][j]]];
+}
+
+Pii Control[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], DeathMap[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+int Apple[409], Deep[409];
+
+inline void DeathPlace()
+{
+	int lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+	
+	std::queue <Pii> q1, q2;
+	rep(i, 0, h-1) rep(j, 0, w-1) lb[i][j] = 0;
+	rep(i, 0, h-1) rep(j, 0, w-1) if ((gameField.fieldStatic[i][j] == 14) || (gameField.fieldStatic[i][j] == 13) || (gameField.fieldStatic[i][j] == 11) || (gameField.fieldStatic[i][j] == 7))
+		q1.push(Pii(i,j)), lb[i][j] |= 1;
+	while (true)
+	{
+		while (!q2.empty()) q1.push(q2.front()), q2.pop();
+		bool fg = true;
+		while (!q1.empty())
+		{
+			Pii a = q1.front(); q1.pop(); int tmp = 0;
+			rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
+			{
+				GO(a, d);
+				if (!lb[a.fi][a.se]) tmp++;
+				GO(a, d^2);
+			}
+			
+			if (tmp > 1) q2.push(a);
+			if (tmp == 1) rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
+			{
+				GO(a, d); if (!lb[a.fi][a.se])
+				{
+					fg = false;
+					q1.push(a), lb[a.fi][a.se] |= 1, tmp--;
+				}
+				GO(a, d^2);
+			}
+			if (tmp == 0) lb[a.fi][a.se] |= 2;
+		}
+		if (fg) break;
+	}
+	
+	int tmp = 0;
+	while (!q2.empty())
+	{
+		Pii a = q2.front(); q2.pop(); Pii b = a;
+		rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
+		{
+			GO(a, d); if (lb[a.fi][a.se] == 3)
+			{
+				q1.push(a);
+				DeathMap[a.fi][a.se] = Pii(1,++tmp);
+				Control[a.fi][a.se] = b;
+				Apple[tmp] += (gameField.fieldContent[a.fi][a.se]&16?1:0) + (gameField.fieldContent[a.fi][a.se]&32?gameField.LARGE_FRUIT_ENHANCEMENT:0);
+				Deep[tmp] = 1;
+				lb[a.fi][a.se] = 4;
+			}
+			GO(a, d^2);
+		}
+	}
+	while (!q1.empty())
+	{
+		Pii a = q1.front(); q1.pop(); Pii tmp = DeathMap[a.fi][a.se]; Pii b = Control[a.fi][a.se];
+		rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
+		{
+			GO(a, d); if (lb[a.fi][a.se] == 3 && DeathMap[a.fi][a.se].fi == 0)
+			{
+				q1.push(a);
+				DeathMap[a.fi][a.se] = tmp, DeathMap[a.fi][a.se].fi++;
+				Control[a.fi][a.se] = b;
+				Apple[DeathMap[a.fi][a.se].se] += (gameField.fieldContent[a.fi][a.se]&16?1:0) + (gameField.fieldContent[a.fi][a.se]&32?gameField.LARGE_FRUIT_ENHANCEMENT:0);
+				Deep[DeathMap[a.fi][a.se].se] = std::max(Deep[DeathMap[a.fi][a.se].se], DeathMap[a.fi][a.se].fi);
+				lb[a.fi][a.se] = 4;
+			}
+			GO(a, d^2);
+		}
+	}
+}
+
+Pii Wall[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH]; int DeathShort[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+
+inline void WallMap()
+{
+	int Short[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+	std::queue<Pii> q;
+	
+	rep(i, 0, h-1) rep(j, 0, w-1) Short[i][j] = inf, Wall[i][j].fi = inf;
+	rep(i, 0, 3) if (i != myID && !gameField.players[i].dead && Short[gameField.players[i].row][gameField.players[i].col] && gameField.players[i].strength >= 6)
 		q.push(Pii(gameField.players[i].row,gameField.players[i].col)), Short[gameField.players[i].row][gameField.players[i].col] = 0;
 	while (!q.empty())
 	{
@@ -953,18 +1065,25 @@ inline void WallMap(Pacman::GameField &gameField)
 		}
 	}
 	
+	rep(i, 0, h-1) rep(j, 0, w-1) if (DeathMap[i][j].fi) DeathShort[i][j] = Short[Control[i][j].fi][Control[i][j].se];
+	
 	rep(i, 0, h-1) rep(j, 0, w-1) if ((gameField.fieldStatic[i][j] & 5) != 5 && (gameField.fieldStatic[i][j] & 10) != 10)
-		q.push(Pii(i,j)), Wall[i][j] = 0;
+		q.push(Pii(i,j)), Wall[i][j].fi = 0;
 	while (!q.empty())
 	{
-		Pii a = q.front(); q.pop(); int v = Wall[a.fi][a.se];
+		Pii a = q.front(); q.pop(); int v = Wall[a.fi][a.se].fi;
 		rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0) 
 		{
 			a = GO(a, d); 
-			if (Wall[a.fi][a.se] == inf) q.push(a), Wall[a.fi][a.se] = v+1;
+			if (Wall[a.fi][a.se].fi == inf) q.push(a), Wall[a.fi][a.se].fi = v+1;
 			a = GO(a, (d+2)%4);
 		}
 	}
+	rep(i, 0, h-1) rep(j, 0, w-1) if (Wall[i][j].fi == inf) Wall[i][j].fi = -1;
+	
+	
+	int lb_0[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], lb_1[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], mn_0[409], mn_1[409];
+	clr(lb_0,0); clr(lb_1,0); clr(mn_0,0); clr(mn_1,0);
 	
 	int tmp = 0; rep(i, 0, h-1) rep(j, 0, w-1) if (!lb_0[i][j])
 	{
@@ -987,15 +1106,79 @@ inline void WallMap(Pacman::GameField &gameField)
 		}
 	}
 	
-	rep(i, 0, h-1) rep(j, 0, w-1) if (!Wall[i][j]) 
+	rep(i, 0, h-1) rep(j, 0, w-1)
 		mn_0[lb_0[i][j]] = std::min(mn_0[lb_0[i][j]], Short[i][j]),
 		mn_1[lb_1[i][j]] = std::min(mn_1[lb_1[i][j]], Short[i][j]);
 	
-	rep(i, 0, h-1) rep(j, 0, w-1) Short[i][j] = std::min(mn_0[lb_0[i][j]], mn_1[lb_1[i][j]]);
-	rep(i, 0, h-1) rep(j, 0, w-1) if (Wall[i][j] == inf) Wall[i][j] = -1;
+	rep(i, 0, h-1) rep(j, 0, w-1) Wall[i][j].se = std::min(mn_0[lb_0[i][j]], mn_1[lb_1[i][j]]);
 }
 
-#define MAX_SEARCH 17
+int FirstRoundMap[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+
+inline void Candy()
+{
+	int lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+	std::queue<Pii> q;
+	
+	rep(o, 0, 3) if (o != myID && !gameField.players[o].dead && gameField.players[o].strength > gameField.players[myID].strength)
+	{
+		rep(i, 0, h-1) rep(j, 0, w-1) lb[i][j] = inf;
+		q.push(Pii(gameField.players[o].row,gameField.players[o].col)), lb[gameField.players[o].row][gameField.players[o].col] = 0;
+		while (!q.empty())
+		{
+			Pii a = q.front(); q.pop(); int v = lb[a.fi][a.se];
+			if (v == 0) FirstRoundMap[a.fi][a.se] -= 20;
+			if (v == 1) FirstRoundMap[a.fi][a.se] -= 15;
+			if (v == 2) {FirstRoundMap[a.fi][a.se] -= 10; continue;}
+			rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0) 
+			{
+				a = GO(a, d); 
+				if (lb[a.fi][a.se] == inf) q.push(a), lb[a.fi][a.se] = v+1;
+				a = GO(a, (d+2)%4);
+			}
+		}
+	}
+	
+	rep(o, 0, 3) if (o != myID && !gameField.players[o].dead && gameField.players[o].strength < gameField.players[myID].strength)
+	{
+		Pii a = Pii(gameField.players[o].row,gameField.players[o].col);
+		rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0)
+		{
+			GO(a, d);
+			if (DeathMap[a.fi][a.se].fi && gameField.players[o].strength + Apple[DeathMap[a.fi][a.se].se] < gameField.players[myID].strength)
+			{
+				if (gameField.aliveCount == 2 || Deep[DeathMap[a.fi][a.se].se] <= 3)
+				{
+					rep(dd, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<dd)) == 0)
+					{
+						GO(a, dd);
+						FirstRoundMap[a.fi][a.se] += 50;
+						GO(a, dd^2);
+					}
+				}
+			}
+			GO(a, d^2);
+		}
+		if (DeathMap[a.fi][a.se].fi && gameField.players[o].strength + Apple[DeathMap[a.fi][a.se].se] < gameField.players[myID].strength)
+		{
+			if (gameField.aliveCount == 2 || Deep[DeathMap[a.fi][a.se].se] <= 3)
+			{
+				rep(dd, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<dd)) == 0)
+				{
+					GO(a, dd);
+					FirstRoundMap[a.fi][a.se] += 30;
+					GO(a, dd^2);
+				}
+			}
+		}
+	}
+}
+
+// Monte Carlo Search
+
+#define MAX_SEARCH 22
+
+double ppow[59], ppow2[59];
 	
 double Bean[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][MAX_SEARCH];
 
@@ -1007,7 +1190,7 @@ Pro PlayerPro[MAX_PLAYER_COUNT];
 
 struct Way
 {
-	int length, act[MAX_SEARCH], x[MAX_SEARCH], y[MAX_SEARCH], strength[MAX_SEARCH]; double score, pos; bool apple;
+	int length, act[MAX_SEARCH], x[MAX_SEARCH], y[MAX_SEARCH], strength[MAX_SEARCH]; double score, pos;
 } Ways[10009], emptyWay;
 
 inline int Pre(Way &now)
@@ -1017,15 +1200,11 @@ inline int Pre(Way &now)
 	return now.act[now.length]^2;
 }
 
-double ppow[59];
-int ppow2[59], tmp_map[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
-
-void MC(Pacman::GameField &gameField, Way &now, int L, int PlayerID)
+void MC(Way &now, int L, int PlayerID, int Round)
 {
-	if (L == 1) now.score += tmp_map[now.x[L]][now.y[L]];
+	if (L == 1 && PlayerID == myID) now.score += FirstRoundMap[now.x[L]][now.y[L]];
 	
-	//if (L == Intesval || gameField.turnID >= MAX_TURN)
-	if (L == 15 || gameField.turnID >= MAX_TURN)
+	if (L == MAX_SEARCH-2 || gameField.turnID >= MAX_TURN)
 	{
 		now.length = L; return;
 	}
@@ -1037,16 +1216,16 @@ void MC(Pacman::GameField &gameField, Way &now, int L, int PlayerID)
 	for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d)) vCount++;
 	for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d)) valid.d[d+1] = 1.0/vCount;
 	
+	if (valid.d[0])
+	{
+		rep(d, 0, 3) if (valid.d[d+1]) valid.d[d+1]+=valid.d[0]/10*9/(vCount-1);
+		valid.d[0] /= 10;
+	}
 	int tmp = Pre(now);
 	if (0<=tmp && valid.d[tmp+1])
 	{
 		rep(d, -1, 3) if (d!=tmp && valid.d[d+1]) valid.d[d+1]+=valid.d[tmp+1]/10*9/(vCount-1);
 		valid.d[tmp+1] /= 10;
-	}
-	if (valid.d[0])
-	{
-		rep(d, 0, 3) if (valid.d[d+1]) valid.d[d+1]+=valid.d[0]/5*4/(vCount-1);
-		valid.d[0] /= 5;
 	}
 	
 	if (L == 0)
@@ -1064,14 +1243,12 @@ void MC(Pacman::GameField &gameField, Way &now, int L, int PlayerID)
 	}
 	else gameField.actions[PlayerID] = RandDir(valid);
 	
-	L++;
-	
-	now.act[L] = gameField.actions[PlayerID];
+	now.act[++L] = gameField.actions[PlayerID];
 	
 	tmp = -gameField.players[PlayerID].strength;
 	gameField.NextTurn();
 	tmp += gameField.players[PlayerID].strength;
-	while (tmp < 0) tmp += 10;
+	while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
 	
 	now.x[L] = gameField.players[PlayerID].row;
 	now.y[L] = gameField.players[PlayerID].col;
@@ -1080,43 +1257,40 @@ void MC(Pacman::GameField &gameField, Way &now, int L, int PlayerID)
 	double d = 1;
 	rep(i, 0, 3) if (i != PlayerID)
 		d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
-	if (tmp == 10) d *= d, tmp = 8;
-	if (tmp == 1) tmp = 2;
-	if (tmp == 0) tmp = -1;
-	now.score += d * tmp * (1.0/L+1);
+	d = 1-(1-d)*log(MAX_SEARCH-1-L)/log(MAX_SEARCH-2)*(Round*0.5);
+	if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
+	if (PlayerID == myID)
+		now.score += d * (tmp + ((tmp && BeanBlock[now.x[L]][now.y[L]]) ? log(BeanBlock[now.x[L]][now.y[L]])/log(2) : 0));
+	else
+		now.score += d * tmp;
 	
-	double mn = 1e90;
+	/* double mn = 1e90;
 	rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
-		mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]); // -1 防止同力量跟着别人
+		mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
 	if (mn == 1e90) mn = 0;
-	now.score += mn * 25 * (2.0/L);
+	if (PlayerID == myID)
+		now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-1-L) * (Round*0.5);
+	else
+		now.score += mn * 10 * log(MAX_SEARCH-1-L) * (Round*0.3); */
 	
-	if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 6 * (2.0/L);
-	if (now.act[L] == -1) now.score -= 3 * (2.0/L);
-	if (Wall[now.x[L]][now.y[L]] && Wall[now.x[L]][now.y[L]]+1-std::max(Short[now.x[L]][now.y[L]]-L,0)>=2)
-	{
-		if (gameField.fieldStatic[now.x[L]][now.y[L]] == 14 || gameField.fieldStatic[now.x[L]][now.y[L]] == 13 || gameField.fieldStatic[now.x[L]][now.y[L]] == 11 || gameField.fieldStatic[now.x[L]][now.y[L]] == 7)
-			now.score -= ppow2[Wall[now.x[L]][now.y[L]]+2-std::max(Short[now.x[L]][now.y[L]]-L,0)] * (1.0/L+1);
-		else
-			now.score -= ppow2[Wall[now.x[L]][now.y[L]]+1-std::max(Short[now.x[L]][now.y[L]]-L,0)] * (1.0/L+1);
-	}
+	if (Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
+		now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
 	
-	MC(gameField, now, L, PlayerID);
+	if (DeathMap[now.x[L]][now.y[L]].fi && DeathMap[now.x[L]][now.y[L]].fi+1-std::max(DeathShort[now.x[L]][now.y[L]]-1-L,0)>=2)
+		now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
+	
+	MC(now, L, PlayerID, Round);
 	
 	gameField.PopState();
 }
 
 int Count[MAX_PLAYER_COUNT][7][6];
 
-struct Req
-{
-	int a, b, c, d;
-	//Req(int _a, int _b, int _c, int _d):a(_a),b(_b),c(_c),d(_d){}
-} Request[10009]; int RequestNum;
+struct Req{int a, b, c, d;} Request[10009]; int RequestNum;
 
 Req Addreq(int a, int b, int c, int d){return (Req){a,b,c,d};}
 
-void DealWithInputData(Pacman::GameField &gameField)
+void DealWithInputData()
 {
 	std::istringstream istr(data);
 	rep(a, 0, 3) if (a != myID)
@@ -1160,9 +1334,7 @@ int color[MAX_PLAYER_COUNT][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
 
 double Point[9]; int FightMX;
 
-inline double Poss(int a, int b){return 1.0*a/(a+b);}
-
-void Draw(int PlayerID, Pacman::GameField &gameField)
+void Draw(int PlayerID)
 {
 	int x = gameField.players[PlayerID].row, y = gameField.players[PlayerID].col, tmpx = x, tmpy = y;
 	
@@ -1207,9 +1379,9 @@ int Pred[MAX_PLAYER_COUNT];
 
 int PlayWall[MAX_PLAYER_COUNT];
 
-void Fight(Pacman::GameField &gameField)
+void Fight()
 {
-	rep(i, 0, 3) if (!gameField.players[i].dead) Draw(i, gameField), Pred[i] = RandDirOne(PlayerPro[i]);
+	rep(i, 0, 3) if (!gameField.players[i].dead) Draw(i), Pred[i] = RandDirOne(PlayerPro[i]);
 	
 	rep(i, 0, 3) if (!gameField.players[i].dead)
 	{
@@ -1235,7 +1407,7 @@ void Fight(Pacman::GameField &gameField)
 				{
 					a = GO(a, d);
 					if (a == tmp) break;
-					tmp_map[a.fi][a.se] += -SkillCost*1.5;
+					FirstRoundMap[a.fi][a.se] += -SkillCost*2;
 				}
 				rep(d, -1, 7) Request[++RequestNum] = Addreq(i, d, PlayWall[i]?0:2, (d>=4 && (color[j][x][y] & (1<<(d-4))))?0:1);
 			}
@@ -1262,14 +1434,14 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 0 || Pred[myID] == 2))
 				{
-					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
-					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * ((inc(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
+					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * ((inc(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
-					Point[3] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					Point[3] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[4] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
 					
-					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
+					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 5);
 					Request[++RequestNum] = Addreq(i, 0, a, 5);
@@ -1283,14 +1455,14 @@ void Fight(Pacman::GameField &gameField)
 				}
 				else
 				{
-					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
-					Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * ((inc(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
+					Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * ((inc(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
-					Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
 					Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
 					
-					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
+					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 1);
 					Request[++RequestNum] = Addreq(i, 0, a, 1);
@@ -1308,7 +1480,7 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15))))
 				{
-					Point[5] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*2,
+					Point[5] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[5] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 2),
@@ -1321,7 +1493,7 @@ void Fight(Pacman::GameField &gameField)
 					Request[++RequestNum] = Addreq(i, 6, a, 2),
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
-				if ((a & 2) == 0) Point[5] += +SkillCost*2;
+				if ((a & 2) == 0) Point[5] += +SkillCost*0.5;
 			}
 		}
 		
@@ -1333,14 +1505,14 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 0 || Pred[myID] == 2))
 				{
-					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
-					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
+					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
-					Point[3] += Poss(Count[i][a][4], Count[i][a][5]) * ((dec(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[3] += Poss(Count[i][a][4], Count[i][a][5]) * ((dec(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					Point[4] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
 					
-					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
+					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 5);
 					Request[++RequestNum] = Addreq(i, 0, a, 5);
@@ -1354,14 +1526,14 @@ void Fight(Pacman::GameField &gameField)
 				}
 				else
 				{
-					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
-					Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
+					Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
 					Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
-					Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * ((dec(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * ((dec(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
 					
-					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
+					if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 1);
 					Request[++RequestNum] = Addreq(i, 0, a, 1);
@@ -1379,7 +1551,7 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15))))
 				{
-					Point[7] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*2,
+					Point[7] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[7] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 2),
@@ -1392,7 +1564,7 @@ void Fight(Pacman::GameField &gameField)
 					Request[++RequestNum] = Addreq(i, 6, a, 2),
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
-				if ((a & 2) == 0) Point[7] += +SkillCost*2;
+				if ((a & 2) == 0) Point[7] += +SkillCost*0.5;
 			}
 		}
 		
@@ -1404,14 +1576,14 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 1 || Pred[myID] == 3))
 				{
-					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
-					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * ((dec(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * ((dec(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					Point[3] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
-					Point[4] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					Point[4] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					
-					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
+					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 5);
 					Request[++RequestNum] = Addreq(i, 0, a, 5);
@@ -1425,14 +1597,14 @@ void Fight(Pacman::GameField &gameField)
 				}
 				else
 				{
-					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
-					Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * ((dec(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * ((dec(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
-					Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
 					
-					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
+					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 1);
 					Request[++RequestNum] = Addreq(i, 0, a, 1);
@@ -1450,7 +1622,7 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15))))
 				{
-					Point[6] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*2,
+					Point[6] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[6] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 2),
@@ -1463,7 +1635,7 @@ void Fight(Pacman::GameField &gameField)
 					Request[++RequestNum] = Addreq(i, 6, a, 2),
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
-				if ((a & 2) == 0) Point[6] += +SkillCost*2;
+				if ((a & 2) == 0) Point[6] += +SkillCost*0.5;
 			}
 		}
 		
@@ -1475,14 +1647,14 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 1 || Pred[myID] == 3))
 				{
-					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
-					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[3] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
-					Point[4] += Poss(Count[i][a][4], Count[i][a][5]) * ((inc(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[4] += Poss(Count[i][a][4], Count[i][a][5]) * ((inc(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					
-					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
+					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 5);
 					Request[++RequestNum] = Addreq(i, 0, a, 5);
@@ -1496,14 +1668,14 @@ void Fight(Pacman::GameField &gameField)
 				}
 				else
 				{
-					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
-					Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*2;
 					Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
-					Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * ((inc(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*1.5);
+					Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * ((inc(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					
-					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
-					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost*1.5;
+					if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
+					if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][0], Count[i][a][1]) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 1);
 					Request[++RequestNum] = Addreq(i, 0, a, 1);
@@ -1521,7 +1693,7 @@ void Fight(Pacman::GameField &gameField)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15))))
 				{
-					Point[8] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*2,
+					Point[8] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[8] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
 					
 					Request[++RequestNum] = Addreq(i, -1, a, 2),
@@ -1534,7 +1706,7 @@ void Fight(Pacman::GameField &gameField)
 					Request[++RequestNum] = Addreq(i, 6, a, 2),
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
-				if ((a & 2) == 0) Point[8] += +SkillCost*2;
+				if ((a & 2) == 0) Point[8] += +SkillCost*0.5;
 			}
 		}
 	}
@@ -1546,13 +1718,7 @@ void Fight(Pacman::GameField &gameField)
 		{
 			if (Pred[myID] == 0)
 			{
-				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
-				
-				Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +SkillCost;
 				Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
-				Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
 				Request[++RequestNum] = Addreq(i, 0, 5, 1);
@@ -1566,13 +1732,7 @@ void Fight(Pacman::GameField &gameField)
 			}
 			else
 			{
-				if (Poss(Count[i][5][2], Count[i][5][3]) <= 0.5) continue;
-				
-				Point[0] += Poss(Count[i][5][2], Count[i][5][3]) * +SkillCost;
 				Point[1] += Poss(Count[i][5][2], Count[i][5][3]) * -SkillCost*1.5;
-				Point[2] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[3] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[4] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 3);
 				Request[++RequestNum] = Addreq(i, 0, 5, 3);
@@ -1595,13 +1755,7 @@ void Fight(Pacman::GameField &gameField)
 		{
 			if (Pred[myID] == 1)
 			{
-				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
-				
-				Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +SkillCost;
 				Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
-				Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
 				Request[++RequestNum] = Addreq(i, 0, 5, 1);
@@ -1615,13 +1769,7 @@ void Fight(Pacman::GameField &gameField)
 			}
 			else
 			{
-				if (Poss(Count[i][5][2], Count[i][5][3]) <= 0.5) continue;
-				
-				Point[0] += Poss(Count[i][5][2], Count[i][5][3]) * +SkillCost;
 				Point[2] += Poss(Count[i][5][2], Count[i][5][3]) * -SkillCost*1.5;
-				Point[1] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[3] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[4] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 3);
 				Request[++RequestNum] = Addreq(i, 0, 5, 3);
@@ -1644,13 +1792,7 @@ void Fight(Pacman::GameField &gameField)
 		{
 			if (Pred[myID] == 2)
 			{
-				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
-				
-				Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +SkillCost;
 				Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
-				Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
 				Request[++RequestNum] = Addreq(i, 0, 5, 1);
@@ -1664,13 +1806,7 @@ void Fight(Pacman::GameField &gameField)
 			}
 			else
 			{
-				if (Poss(Count[i][5][2], Count[i][5][3]) <= 0.5) continue;
-				
-				Point[0] += Poss(Count[i][5][2], Count[i][5][3]) * +SkillCost;
 				Point[3] += Poss(Count[i][5][2], Count[i][5][3]) * -SkillCost*1.5;
-				Point[2] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[1] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[4] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 3);
 				Request[++RequestNum] = Addreq(i, 0, 5, 3);
@@ -1693,13 +1829,7 @@ void Fight(Pacman::GameField &gameField)
 		{
 			if (Pred[myID] == 3)
 			{
-				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
-				
-				Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +SkillCost;
 				Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
-				Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
-				Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
 				Request[++RequestNum] = Addreq(i, 0, 5, 1);
@@ -1713,13 +1843,7 @@ void Fight(Pacman::GameField &gameField)
 			}
 			else
 			{
-				if (Poss(Count[i][5][2], Count[i][5][3]) <= 0.5) continue;
-				
-				Point[0] += Poss(Count[i][5][2], Count[i][5][3]) * +SkillCost;
 				Point[4] += Poss(Count[i][5][2], Count[i][5][3]) * -SkillCost*1.5;
-				Point[2] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[3] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
-				Point[1] += Poss(Count[i][5][2], Count[i][5][3]) * +1;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 3);
 				Request[++RequestNum] = Addreq(i, 0, 5, 3);
@@ -1747,16 +1871,16 @@ void Fight(Pacman::GameField &gameField)
 		if (color[myID][xx][yy] & 15)
 		{
 			if (color[myID][xx][yy] & 1) 
-				Point[5] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*2,
+				Point[5] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*0.5,
 				Point[5] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -SkillCost;
 			if (color[myID][xx][yy] & 2) 
-				Point[6] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*2,
+				Point[6] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*0.5,
 				Point[6] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -SkillCost;
 			if (color[myID][xx][yy] & 4) 
-				Point[7] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*2,
+				Point[7] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*0.5,
 				Point[7] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -SkillCost;
 			if (color[myID][xx][yy] & 8) 
-				Point[8] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*2,
+				Point[8] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +SkillCost*0.5,
 				Point[8] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -SkillCost;
 			
 			rep(a, 0, 4) Request[++RequestNum] = Addreq(i, a-1, 4, (a-1==d)?0:1);
@@ -1768,17 +1892,17 @@ void Fight(Pacman::GameField &gameField)
 
 bool way_cmp(Way a, Way b){return a.score > b.score;}
 
-void Init(Pacman::GameField &gameField, int o)
+void Init(int o)
 {
 	rep(i, 0, gameField.height-1) rep(j, 0, gameField.width-1) rep(a, 0, MAX_PLAYER_COUNT-1) rep(b, 0, MAX_SEARCH-1) 
 		Bean[o][i][j][a][b] = 0, Appear[o][i][j][a][b] = Pdd(0,0);
 }
 
-inline Pacman::Direction Final(Pacman::GameField &gameField, Pro a)
+inline Pacman::Direction Final(Pro a)
 {
-	if (Point[FightMX] >= 4.0/6*SkillCost && gameField.players[myID].strength - (gameField.players[myID].powerUpLeft ? 10 : 0) > SkillCost && !danger) return v(FightMX-1);
+	//if (Point[FightMX] >= SkillCost*0.75 && gameField.players[myID].strength - (gameField.players[myID].powerUpLeft ? 10 : 0) > SkillCost && !danger) return v(FightMX-1);
 	
-	if (Point[FightMX] >= 5.5/6*SkillCost && gameField.players[myID].strength > SkillCost && !danger) return v(FightMX-1);
+	//if (Point[FightMX] >= SkillCost && gameField.players[myID].strength > SkillCost && !danger) return v(FightMX-1);
 	
 	int mx = -1;
 	if (danger)
@@ -1801,15 +1925,13 @@ int ddd[10009];
 
 bool cmp_ddd(int a, int b){return Ways[a].pos > Ways[b].pos;}
 
-#define opp_A 3
+#define opp_A 1
 #define opp_B 1000
 
 int main()
 {
 	ppow[0] = 1; rep(i, 1, 50) ppow[i] = ppow[i-1] * 0.95;
-	ppow2[0] = 1; rep(i, 1, 20) ppow2[i] = ppow2[i-1] * 2;
-	
-	Pacman::GameField gameField;
+	ppow2[0] = 1; rep(i, 1, 50) ppow2[i] = ppow2[i-1] * 0.8;
 
 							 // 如果在本地调试，有input.txt则会读取文件内容作为输入
 							 // 如果在平台上，则不会去检查有无input.txt
@@ -1817,7 +1939,7 @@ int main()
 	
 	rep(i, 1, 50) Rand();
 	
-	h = gameField.height, w = gameField.width, SkillCost = gameField.SKILL_COST, Intesval = gameField.GENERATOR_INTERVAL;
+	h = gameField.height, w = gameField.width, SkillCost = gameField.SKILL_COST, Interval = gameField.GENERATOR_INTERVAL;
 	
 	if (gameField.turnID == 0)
 	{
@@ -1832,9 +1954,12 @@ int main()
 		data += '\n';
 	}
 	
-	DealWithInputData(gameField);
+	DealWithInputData();
 	
-	WallMap(gameField);
+	Block();
+	DeathPlace();
+	WallMap();
+	Candy();
 	
 	rep(i, 0, 3) if (i != myID && gameField.players[i].strength > gameField.players[myID].strength)
 	{
@@ -1843,9 +1968,9 @@ int main()
 				danger = true;
 	}
 	
-	rep(Round, 1, opp_A)
+	rep(Round, 0, opp_A-1)
 	{
-		Init(gameField, page^=1); if (Round == 1) Init(gameField, page^=1);
+		Init(page^=1); if (Round == 1) Init(page^=1);
 		
 		rep(PlayerID, 0, 3)
 		{
@@ -1869,7 +1994,7 @@ int main()
 				now.strength[0] = gameField.players[PlayerID].strength;
 				now.x[0] = gameField.players[PlayerID].row;
 				now.y[0] = gameField.players[PlayerID].col;
-				MC(gameField, now, 0, PlayerID);
+				MC(now, 0, PlayerID, Round);
 			}
 			
 			gameField.aliveCount = tmpCount;
@@ -1900,7 +2025,7 @@ int main()
 				{
 					Bean[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp] += g.pos;
 					rep(j, tmp+1, g.length) 
-						if ((tmp+gameField.turnID)/Intesval == (j+gameField.turnID)/Intesval)
+						if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
 							Bean[page][g.x[tmp]][g.y[tmp]][PlayerID][j] += g.pos;
 					if (g.pos > 0)
 						Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + g.pos),
@@ -1912,10 +2037,11 @@ int main()
 #ifndef _BOTZONE_ONLINE
 		rep(i, 0, 4) printf("%.5lf%c", PlayerPro[myID].d[i], i==4?'\n':' ');
 #endif
+
 	}
 	
 	
-	Fight(gameField);
+	Fight();
 	
 	tmpCount = gameField.aliveCount, gameField.aliveCount = 2;
 	rep(i, 0, 3) if (i!=myID)
@@ -1934,7 +2060,7 @@ int main()
 		now.strength[0] = gameField.players[myID].strength;
 		now.x[0] = gameField.players[myID].row;
 		now.y[0] = gameField.players[myID].col;
-		MC(gameField, now, 0, myID);
+		MC(now, 0, myID, opp_A-1);
 	}
 	
 	gameField.aliveCount = tmpCount;
@@ -1950,7 +2076,7 @@ int main()
 	else
 	{
 		Ways[i].score += Point[0];
-		if (Point[FightMX] > 0.1 && gameField.players[myID].strength > SkillCost && !danger) Ways[i].score += Point[FightMX] + 6;
+		if (Point[FightMX] > 0.1 && gameField.players[myID].strength > SkillCost && !danger) Ways[i].score += Point[FightMX];
 	}
 	
 	double Small = 1e90, Big = -1e90;
@@ -1973,7 +2099,7 @@ int main()
 		{
 			Bean[page][g.x[tmp]][g.y[tmp]][myID][tmp] += g.pos;
 			rep(j, tmp+1, g.length) 
-				if ((tmp+gameField.turnID)/Intesval == (j+gameField.turnID)/Intesval)
+				if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
 					Bean[page][g.x[tmp]][g.y[tmp]][myID][j] += g.pos;
 			if (g.pos > 0)
 				Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + g.pos),
@@ -1992,9 +2118,9 @@ int main()
 #ifdef _BOTZONE_ONLINE
 	Ds("Round"); Di(gameField.turnID); Dn();
 	globalData += data; Dn();
-	gameField.WriteOutput(Final(gameField, now), "Excited!", data, globalData);
+	gameField.WriteOutput(Final(now), "Excited!", data, globalData);
 #else
-	gameField.WriteOutput(Final(gameField, now), "Excited!", data, "");
+	gameField.WriteOutput(Final(now), "Excited!", data, "");
 #endif
 	
 	return 0;
