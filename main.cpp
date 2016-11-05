@@ -1266,7 +1266,8 @@ inline void MC(Way &now, int PlayerID, int Round)
 			d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
 		d = 1 - (1-d) * (Round*0.5);
 		now.score += d * tmp * (1.0/L+1);
-		if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]]) now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
+		if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]]) 
+			now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(2);
 		
 		double mn = 1e90;
 		rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
@@ -1937,7 +1938,7 @@ bool cmp_ddd(int a, int b){return Ways[a].pos > Ways[b].pos;}
 int main()
 {
 	ppow[0] = 1; rep(i, 1, 50) ppow[i] = ppow[i-1] * 0.95;
-	ppow2[0] = 1; rep(i, 1, 50) ppow2[i] = ppow2[i-1] * 0.8;
+	ppow2[0] = 1; rep(i, 1, 50) ppow2[i] = ppow2[i-1] * 0.5;
 
 							 // 如果在本地调试，有input.txt则会读取文件内容作为输入
 							 // 如果在平台上，则不会去检查有无input.txt
