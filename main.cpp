@@ -1273,6 +1273,8 @@ void MC(Way &now, int L, int PlayerID, int Round)
 	else
 		now.score += mn * 10 * log(MAX_SEARCH-1-L) * (Round*0.3); */
 	
+	if (now.act[L] == -1) now.score -= 0.5;
+	
 	if (Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
 		now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
 	
