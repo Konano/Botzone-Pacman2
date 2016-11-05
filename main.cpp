@@ -834,7 +834,7 @@ namespace Pacman
 
 Pacman::GameField gameField;
 
-int h, w, myID, SkillCost, Interval; bool danger;
+int h, w, myID, SkillCost, Interval, BeginturnID; bool danger;
 
 #define rep(i, l, r) for(int i=l; i<=r; i++)
 #define dow(i, l, r) for(int i=l; i>=r; i--)
@@ -1249,6 +1249,9 @@ void MC(Way &now, int L, int PlayerID, int Round)
 	gameField.NextTurn();
 	tmp += gameField.players[PlayerID].strength;
 	while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
+	if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
+	if (tmp == 0) tmp = -1;
+	if (PlayerID == myID && gameField.turnID >= 20 && BeanBlock[now.x[L]][now.y[L]]) tmp += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
 	
 	now.x[L] = gameField.players[PlayerID].row;
 	now.y[L] = gameField.players[PlayerID].col;
@@ -1258,10 +1261,8 @@ void MC(Way &now, int L, int PlayerID, int Round)
 	rep(i, 0, 3) if (i != PlayerID)
 		d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
 	d = 1 - (1-d) * (Round*0.5);
-	if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
-	now.score += d * tmp;
-	if (PlayerID == myID)
-		now.score += BeanBlock[now.x[L]][now.y[L]] ? log(BeanBlock[now.x[L]][now.y[L]])/log(2) : 0;
+	now.score += d * tmp * (1.0/L+1);
+	if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]]) now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
 	
 	double mn = 1e90;
 	rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
@@ -1941,7 +1942,7 @@ int main()
 	
 	rep(i, 1, 50) Rand();
 	
-	h = gameField.height, w = gameField.width, SkillCost = gameField.SKILL_COST, Interval = gameField.GENERATOR_INTERVAL;
+	h = gameField.height, w = gameField.width, SkillCost = gameField.SKILL_COST, Interval = gameField.GENERATOR_INTERVAL, BeginturnID = gameField.turnID;
 	
 	if (gameField.turnID == 0)
 	{
