@@ -53,7 +53,7 @@ using std::runtime_error;
 #ifdef _BOTZONE_ONLINE
 	unsigned int RR = time(0);
 #else
-	unsigned int RR = 1478325354;
+	unsigned int RR = 1478357696;
 #endif
 
 inline double Rand()
@@ -1257,23 +1257,23 @@ void MC(Way &now, int L, int PlayerID, int Round)
 	double d = 1;
 	rep(i, 0, 3) if (i != PlayerID)
 		d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
-	d = 1-(1-d)*log(MAX_SEARCH-1-L)/log(MAX_SEARCH-2)*(Round*0.5);
+	d = 1 - (1-d) * (Round*0.5);
 	if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
+	now.score += d * tmp;
 	if (PlayerID == myID)
-		now.score += d * (tmp + ((tmp && BeanBlock[now.x[L]][now.y[L]]) ? log(BeanBlock[now.x[L]][now.y[L]])/log(2) : 0));
-	else
-		now.score += d * tmp;
+		now.score += BeanBlock[now.x[L]][now.y[L]] ? log(BeanBlock[now.x[L]][now.y[L]])/log(2) : 0;
 	
-	/* double mn = 1e90;
+	double mn = 1e90;
 	rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
 		mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
 	if (mn == 1e90) mn = 0;
 	if (PlayerID == myID)
 		now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-1-L) * (Round*0.5);
 	else
-		now.score += mn * 10 * log(MAX_SEARCH-1-L) * (Round*0.3); */
+		now.score += mn * 10 * log(MAX_SEARCH-1-L) * (Round*0.3);
 	
-	if (now.act[L] == -1) now.score -= 0.5;
+	if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 1;
+	if (now.act[L] == -1) now.score -= 1;
 	
 	if (Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
 		now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
@@ -1927,7 +1927,7 @@ int ddd[10009];
 
 bool cmp_ddd(int a, int b){return Ways[a].pos > Ways[b].pos;}
 
-#define opp_A 1
+#define opp_A 3
 #define opp_B 1000
 
 int main()
