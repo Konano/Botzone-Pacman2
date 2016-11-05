@@ -1200,91 +1200,94 @@ inline int Pre(Way &now)
 	return now.act[now.length]^2;
 }
 
-void MC(Way &now, int L, int PlayerID, int Round)
+inline void MC(Way &now, int PlayerID, int Round)
 {
-	if (L == 1 && PlayerID == myID) now.score += FirstRoundMap[now.x[L]][now.y[L]];
+	int L = 0;
 	
-	if (L == MAX_SEARCH-2 || gameField.turnID >= MAX_TURN)
+	while (true)
 	{
-		now.length = L; return;
-	}
-	
-	rep(i, 0, MAX_PLAYER_COUNT-1) gameField.actions[i] = Pacman::stay;
-	
-	Pro valid = emptyPro;
-	int vCount = 0;
-	for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d)) vCount++;
-	for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d)) valid.d[d+1] = 1.0/vCount;
-	
-	if (valid.d[0])
-	{
-		rep(d, 0, 3) if (valid.d[d+1]) valid.d[d+1]+=valid.d[0]/10*9/(vCount-1);
-		valid.d[0] /= 10;
-	}
-	int tmp = Pre(now);
-	if (0<=tmp && valid.d[tmp+1])
-	{
-		rep(d, -1, 3) if (d!=tmp && valid.d[d+1]) valid.d[d+1]+=valid.d[tmp+1]/10*9/(vCount-1);
-		valid.d[tmp+1] /= 10;
-	}
-	
-	if (L == 0)
-	{
-		int a = WayCount % vCount;
-		for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d))
+		if (L == 1 && PlayerID == myID) now.score += FirstRoundMap[now.x[L]][now.y[L]];
+		
+		if (L == MAX_SEARCH-2 || gameField.turnID >= MAX_TURN)
 		{
-			a--;
-			if (a % vCount == 0) 
+			now.length = L; break;
+		}
+		
+		rep(i, 0, MAX_PLAYER_COUNT-1) gameField.actions[i] = Pacman::stay;
+		
+		Pro valid = emptyPro;
+		int vCount = 0;
+		for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d)) vCount++;
+		for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d)) valid.d[d+1] = 1.0/vCount;
+		
+		if (valid.d[0])
+		{
+			rep(d, 0, 3) if (valid.d[d+1]) valid.d[d+1]+=valid.d[0]/10*9/(vCount-1);
+			valid.d[0] /= 10;
+		}
+		int tmp = Pre(now);
+		if (0<=tmp && valid.d[tmp+1])
+		{
+			rep(d, -1, 3) if (d!=tmp && valid.d[d+1]) valid.d[d+1]+=valid.d[tmp+1]/10*9/(vCount-1);
+			valid.d[tmp+1] /= 10;
+		}
+		
+		if (L == 0)
+		{
+			int a = WayCount % vCount;
+			for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d))
 			{
-				gameField.actions[PlayerID] = d;
-				break;
+				a--;
+				if (a % vCount == 0) 
+				{
+					gameField.actions[PlayerID] = d;
+					break;
+				}
 			}
 		}
+		else gameField.actions[PlayerID] = RandDir(valid);
+		
+		now.act[++L] = gameField.actions[PlayerID];
+		
+		tmp = -gameField.players[PlayerID].strength;
+		gameField.NextTurn();
+		tmp += gameField.players[PlayerID].strength;
+		while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
+		if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
+		if (tmp == 0) tmp = -1;
+		if (PlayerID == myID && gameField.turnID >= 20 && BeanBlock[now.x[L]][now.y[L]]) tmp += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
+		
+		now.x[L] = gameField.players[PlayerID].row;
+		now.y[L] = gameField.players[PlayerID].col;
+		now.strength[L] = gameField.players[PlayerID].strength;
+		
+		double d = 1;
+		rep(i, 0, 3) if (i != PlayerID)
+			d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
+		d = 1 - (1-d) * (Round*0.5);
+		now.score += d * tmp * (1.0/L+1);
+		if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]]) now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
+		
+		double mn = 1e90;
+		rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
+			mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
+		if (mn == 1e90) mn = 0;
+		if (PlayerID == myID)
+			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-1-L) * (Round*0.5);
+		else
+			now.score += mn * 10 * log(MAX_SEARCH-1-L) * (Round*0.3);
+		
+		if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 1;
+		if (now.act[L] == -1) now.score -= 1;
+		
+		if (Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
+			now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
+		
+		if (DeathMap[now.x[L]][now.y[L]].fi && DeathMap[now.x[L]][now.y[L]].fi+1-std::max(DeathShort[now.x[L]][now.y[L]]-1-L,0)>=2)
+			now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
 	}
-	else gameField.actions[PlayerID] = RandDir(valid);
 	
-	now.act[++L] = gameField.actions[PlayerID];
-	
-	tmp = -gameField.players[PlayerID].strength;
-	gameField.NextTurn();
-	tmp += gameField.players[PlayerID].strength;
-	while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
-	if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
-	if (tmp == 0) tmp = -1;
-	if (PlayerID == myID && gameField.turnID >= 20 && BeanBlock[now.x[L]][now.y[L]]) tmp += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
-	
-	now.x[L] = gameField.players[PlayerID].row;
-	now.y[L] = gameField.players[PlayerID].col;
-	now.strength[L] = gameField.players[PlayerID].strength;
-	
-	double d = 1;
-	rep(i, 0, 3) if (i != PlayerID)
-		d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
-	d = 1 - (1-d) * (Round*0.5);
-	now.score += d * tmp * (1.0/L+1);
-	if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]]) now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
-	
-	double mn = 1e90;
-	rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
-		mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
-	if (mn == 1e90) mn = 0;
-	if (PlayerID == myID)
-		now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-1-L) * (Round*0.5);
-	else
-		now.score += mn * 10 * log(MAX_SEARCH-1-L) * (Round*0.3);
-	
-	if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 1;
-	if (now.act[L] == -1) now.score -= 1;
-	
-	if (Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
-		now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
-	
-	if (DeathMap[now.x[L]][now.y[L]].fi && DeathMap[now.x[L]][now.y[L]].fi+1-std::max(DeathShort[now.x[L]][now.y[L]]-1-L,0)>=2)
-		now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
-	
-	MC(now, L, PlayerID, Round);
-	
-	gameField.PopState();
+	while (L--) gameField.PopState();
 }
 
 int Count[MAX_PLAYER_COUNT][7][6];
@@ -1997,7 +2000,7 @@ int main()
 				now.strength[0] = gameField.players[PlayerID].strength;
 				now.x[0] = gameField.players[PlayerID].row;
 				now.y[0] = gameField.players[PlayerID].col;
-				MC(now, 0, PlayerID, Round);
+				MC(now, PlayerID, Round);
 			}
 			
 			gameField.aliveCount = tmpCount;
@@ -2063,7 +2066,7 @@ int main()
 		now.strength[0] = gameField.players[myID].strength;
 		now.x[0] = gameField.players[myID].row;
 		now.y[0] = gameField.players[myID].col;
-		MC(now, 0, myID, opp_A-1);
+		MC(now, myID, opp_A-1);
 	}
 	
 	gameField.aliveCount = tmpCount;
