@@ -1202,7 +1202,7 @@ inline int Pre(Way &now)
 
 inline void MC(Way &now, int PlayerID, int Round)
 {
-	int L = 0;
+	int L = 0; bool fg1 = false;
 	
 	while (true)
 	{
@@ -1262,12 +1262,12 @@ inline void MC(Way &now, int PlayerID, int Round)
 		now.strength[L] = gameField.players[PlayerID].strength;
 		
 		double d = 1;
-		rep(i, 0, 3) if (i != PlayerID)
+		rep(i, 0, 3) if (i != PlayerID && Bean[page^1][now.x[L]][now.y[L]][i][L] >= 0.4)
 			d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
 		d = 1 - (1-d) * (Round*0.5);
 		now.score += d * tmp * (1.0/L+1);
-		if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]]) 
-			now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(2);
+		if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]] && !fg1) 
+			now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(2) * log(MAX_SEARCH-1-L)/log(2), fg1 = true;
 		
 		double mn = 1e90;
 		rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
