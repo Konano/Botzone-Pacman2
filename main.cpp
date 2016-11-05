@@ -1,7 +1,7 @@
 /*
-* Pacman2 程序 V0.0
+* Pacman2 程序 V1.0
 * 作者：NanoApe
-* 本版本不会攻击
+* 在 V0.0 的基础上增加攻击策略
 *
 * 【命名惯例】
 *  r/R/y/Y：Row，行，纵坐标
@@ -54,7 +54,7 @@ using std::runtime_error;
 #ifdef _BOTZONE_ONLINE
 	unsigned int RR = time(0);
 #else
-	unsigned int RR = 1477477967;
+	unsigned int RR = 1477629173;
 #endif
 
 inline double Rand()
@@ -68,7 +68,7 @@ string data, globalData; // 这是回合之间可以传递的信息
 // 平台提供的吃豆人相关逻辑处理程序
 namespace Pacman
 {
-	const time_t seed = time(0);
+	const time_t seed = RR;
 	const int dx[] = { 0, 1, 0, -1, 1, 1, -1, -1 }, dy[] = { -1, 0, 1, 0, -1, 1, 1, -1 };
 
 	// 枚举定义；使用枚举虽然会浪费空间（sizeof(GridContentType) == 4），但是计算机处理32位的数字效率更高
@@ -216,13 +216,13 @@ namespace Pacman
 	private:
 		// 为了方便，大多数属性都不是private的
 
-		// 记录每回合的变化（栈）
-		TurnStateTransfer backtrack[MAX_TURN];
-
 		// 这个对象是否已经创建
 		static bool constructed;
 
 	public:
+		// 记录每回合的变化（栈）
+		TurnStateTransfer backtrack[MAX_TURN];
+		
 		// 场地的长和宽
 		int height, width;
 		int generatorCount;
@@ -840,9 +840,15 @@ namespace Pacman
 #define se second
 
 typedef std::pair<double,double> Pdd;
+typedef std::pair<int,int> Pii;
+
+bool danger; int h, w;
 
 #include <cmath>
 #include <sstream>
+
+inline int inc(int a, int b){return (a+1)%b;}
+inline int dec(int a, int b){return (a-1+b)%b;}
 
 inline void Di(int a)
 {
@@ -867,7 +873,7 @@ inline void Dn(){globalData += '\n';}
 
 int myID;
 
-struct Pro {double d[9];} emptyPro;
+struct Pro {double d[5];} emptyPro;
 
 inline bool RandomChoose(double a)
 {
@@ -898,40 +904,20 @@ inline Pacman::Direction v(int a)
 inline Pacman::Direction RandDir(Pro a)
 {
 	double All = 0;
-	rep(i, 0, 8) All += a.d[i];
-	rep(i, 0, 8) a.d[i] /= All;
+	rep(i, 0, 4) All += a.d[i];
+	rep(i, 0, 4) a.d[i] /= All;
 	double tmp = Rand();
 	
-	rep(i, 0, 8) if (tmp <= a.d[i]) return v(i-1); else tmp -= a.d[i];
+	rep(i, 0, 4) if (tmp <= a.d[i]) return v(i-1); else tmp -= a.d[i];
 	return v(-1);
 }
 
 inline Pacman::Direction RandDirOne(Pro a)
 {
 	int mx = -1;
-	rep(i, 0, 8) if (mx == -1 || a.d[mx] < a.d[i]) mx = i;
+	rep(i, 0, 4) if (mx == -1 || a.d[mx] < a.d[i]) mx = i;
 	
 	return v(mx-1);
-}
-
-inline Pacman::Direction RandDirTwo(Pro a)
-{
-	double All = 0;
-	rep(i, 0, 8) All += a.d[i];
-	rep(i, 0, 8) a.d[i] /= All;
-	
-	int mx = -1, mx2 = -1;
-	rep(i, 0, 8) if (a.d[i])
-	{
-		if (mx == -1 || a.d[mx] < a.d[i]) mx2 = mx, mx = i;
-		else if (mx2 == -1 || a.d[mx2] < a.d[i]) mx2 = i;
-	}
-	if (mx2 == -1 || a.d[mx] > 0.5) return v(mx-1);
-	
-	All = a.d[mx]+a.d[mx2];
-	a.d[mx] /= All; a.d[mx2] /= All;
-	
-	return Rand()<=a.d[mx] ? v(mx-1) : v(mx2-1);
 }
 
 #define MAX_SEARCH 12
@@ -1035,6 +1021,467 @@ void MC(Pacman::GameField &gameField, Way &now, int L, int PlayerID)
 	gameField.PopState();
 }
 
+int Count[MAX_PLAYER_COUNT][7][4];
+
+struct Req
+{
+	int a, b, c, d;
+	//Req(int _a, int _b, int _c, int _d):a(_a),b(_b),c(_c),d(_d){}
+} Request[10009]; int RequestNum;
+
+Req Addreq(int a, int b, int c, int d){return (Req){a,b,c,d};}
+
+void DealWithInputData(Pacman::GameField &gameField)
+{
+	std::istringstream istr(data);
+	rep(a, 0, 3) if (a != myID)
+	{
+		rep(i, 0, 1) rep(j, 0, 1) istr >> Count[a][i][j];
+		rep(i, 2, 3) rep(j, 0, 3) istr >> Count[a][i][j];
+		rep(i, 4, 6) rep(j, 0, 1) istr >> Count[a][i][j];
+	}
+	int n, a, b, c, d; istr >> n; if (!n) return;
+	
+	const Pacman::TurnStateTransfer &bt = gameField.backtrack[gameField.turnID-1];
+	rep(i, 1, n)
+	{
+		istr >> a >> b >> c >> d;
+		if (bt.actions[a] == b) Count[a][c][d]++;
+	}
+}
+
+void DealWithOutputData()
+{
+	std::ostringstream ostr;
+	rep(a, 0, 3) if (a != myID)
+	{
+		rep(i, 0, 1) rep(j, 0, 1) ostr << Count[a][i][j] << ' ';
+		rep(i, 2, 3) rep(j, 0, 3) ostr << Count[a][i][j] << ' ';
+		rep(i, 4, 6) rep(j, 0, 1) ostr << Count[a][i][j] << ' ';
+		ostr << '\n';
+	}
+	ostr << RequestNum << ' ' << '\n';
+	rep(i, 1, RequestNum) ostr << Request[i].a << ' ' << Request[i].b << ' ' << Request[i].c << ' ' << Request[i].d << ' ' << '\n';
+	data = ostr.str();
+}
+
+int color[MAX_PLAYER_COUNT][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+
+double Point[9]; int FightMX;
+
+inline double Poss(int a, int b){return 1.0*a/(a+b);}
+
+void Draw(int PlayerID, Pacman::GameField &gameField)
+{
+	int x = gameField.players[PlayerID].row, y = gameField.players[PlayerID].col, tmpx = x, tmpy = y;
+	
+	color[PlayerID][x][y] |= 1;
+	while ((gameField.fieldStatic[x][y] & 1) == 0)
+	{
+		if (!x) x = gameField.height-1; else x--;
+		if (color[PlayerID][x][y] & 1) break;
+		color[PlayerID][x][y] |= 1;
+	}
+	x = tmpx, y = tmpy, color[PlayerID][x][y] = 0;
+	
+	color[PlayerID][x][y] |= 2;
+	while ((gameField.fieldStatic[x][y] & 2) == 0)
+	{
+		y = (y+1) % gameField.width;
+		if (color[PlayerID][x][y] & 2) break;
+		color[PlayerID][x][y] |= 2;
+	}
+	x = tmpx, y = tmpy, color[PlayerID][x][y] = 0;
+	
+	color[PlayerID][x][y] |= 4;
+	while ((gameField.fieldStatic[x][y] & 4) == 0)
+	{
+		x = (x+1) % gameField.height;
+		if (color[PlayerID][x][y] & 4) break;
+		color[PlayerID][x][y] |= 4;
+	}
+	x = tmpx, y = tmpy, color[PlayerID][x][y] = 0;
+	
+	color[PlayerID][x][y] |= 8;
+	while ((gameField.fieldStatic[x][y] & 8) == 0)
+	{
+		if (!y) y = gameField.width-1; else y--;
+		if (color[PlayerID][x][y] & 8) break;
+		color[PlayerID][x][y] |= 8;
+	}
+	x = tmpx, y = tmpy, color[PlayerID][x][y] = 16;
+}
+
+void Fight(Pacman::GameField &gameField)
+{
+	rep(i, 0, 3) if (!gameField.players[i].dead) Draw(i, gameField);
+	
+	int x = gameField.players[myID].row, y = gameField.players[myID].col, tmpx = x, tmpy = y;
+	int s = gameField.players[myID].strength;
+	if (gameField.players[myID].powerUpLeft) s -= 10;
+	
+	rep(i, 0, 3) if (!gameField.players[i].dead && i != myID)
+	{
+		int a = RandDirOne(PlayerPro[i]);
+		rep(j, -1, 3) Request[++RequestNum] = Addreq(i, j, 6, (a!=j)?1:0);
+	}
+	
+	rep(i, 0, 3) if (color[i][x][y] && i != myID)
+	{
+		if (color[i][x][y] & 16)
+		{
+			int a = RandDirOne(PlayerPro[i]); if (a != -1 && s > 6)
+				Point[5+a] += Poss(Count[i][6][0], Count[i][6][1]) * +6,
+				Point[5+a] += Poss(Count[i][6][1], Count[i][6][0]) * -6;
+		}
+		
+		if (color[i][x][y] & 4)
+		{
+			int a = (((gameField.fieldStatic[x][y] & 10) != 10) ? 1 : 0) + (((gameField.fieldStatic[gameField.players[i].row][gameField.players[i].col] & 10) != 10) ? 2 : 0);
+			
+			if (inc(gameField.players[i].row,h) == x)
+			{
+				if (gameField.players[i].strength == s) a |= 3;
+				if (gameField.players[i].strength < s) a |= 1;
+				if (gameField.players[i].strength > s) a |= 2;
+			}
+			
+			if (gameField.players[i].strength > 6)
+			{
+				Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * ((gameField.players[i].row+1)%h == x ? 0 : -9);
+				Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				
+				if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 1);
+				Request[++RequestNum] = Addreq(i, 0, a, 1);
+				Request[++RequestNum] = Addreq(i, 1, a, 1);
+				Request[++RequestNum] = Addreq(i, 2, a, 1);
+				Request[++RequestNum] = Addreq(i, 3, a, 1);
+				Request[++RequestNum] = Addreq(i, 4, a, 1);
+				Request[++RequestNum] = Addreq(i, 5, a, 1);
+				Request[++RequestNum] = Addreq(i, 6, a, 0);
+				Request[++RequestNum] = Addreq(i, 7, a, 1);
+			}
+			
+			if (a & 2)
+			{
+				Point[5] += Poss(Count[i][a][2], Count[i][a][3]) * +12,
+				Point[5] += Poss(Count[i][a][3], Count[i][a][2]) * -6;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 2),
+				Request[++RequestNum] = Addreq(i, 0, a, 2),
+				Request[++RequestNum] = Addreq(i, 1, a, 3),
+				Request[++RequestNum] = Addreq(i, 2, a, 2),
+				Request[++RequestNum] = Addreq(i, 3, a, 3),
+				Request[++RequestNum] = Addreq(i, 4, a, 2),
+				Request[++RequestNum] = Addreq(i, 5, a, 2),
+				Request[++RequestNum] = Addreq(i, 6, a, 2),
+				Request[++RequestNum] = Addreq(i, 7, a, 2);
+			}
+			else
+				Point[5] += +12;
+		}
+		
+		if (color[i][x][y] & 1)
+		{
+			int a = (((gameField.fieldStatic[x][y] & 10) != 10) ? 1 : 0) + (((gameField.fieldStatic[gameField.players[i].row][gameField.players[i].col] & 10) != 10) ? 2 : 0);
+			
+			if (dec(gameField.players[i].row,h) == x)
+			{
+				if (gameField.players[i].strength == s) a |= 3;
+				if (gameField.players[i].strength < s) a |= 1;
+				if (gameField.players[i].strength > s) a |= 2;
+			}
+			
+			if (gameField.players[i].strength > 6)
+			{
+				Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * ((gameField.players[i].row-1+h)%h == x ? 0 : -9);
+				Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				
+				if ((gameField.fieldStatic[dec(x,h)][y] & 10) == 10) Point[1] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				if ((gameField.fieldStatic[inc(x,h)][y] & 10) == 10) Point[3] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 1);
+				Request[++RequestNum] = Addreq(i, 0, a, 1);
+				Request[++RequestNum] = Addreq(i, 1, a, 1);
+				Request[++RequestNum] = Addreq(i, 2, a, 1);
+				Request[++RequestNum] = Addreq(i, 3, a, 1);
+				Request[++RequestNum] = Addreq(i, 4, a, 0);
+				Request[++RequestNum] = Addreq(i, 5, a, 1);
+				Request[++RequestNum] = Addreq(i, 6, a, 1);
+				Request[++RequestNum] = Addreq(i, 7, a, 1);
+			}
+			
+			if (a & 2)
+			{
+				Point[7] += Poss(Count[i][a][2], Count[i][a][3]) * +12,
+				Point[7] += Poss(Count[i][a][3], Count[i][a][2]) * -6;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 2),
+				Request[++RequestNum] = Addreq(i, 0, a, 2),
+				Request[++RequestNum] = Addreq(i, 1, a, 3),
+				Request[++RequestNum] = Addreq(i, 2, a, 2),
+				Request[++RequestNum] = Addreq(i, 3, a, 3),
+				Request[++RequestNum] = Addreq(i, 4, a, 2),
+				Request[++RequestNum] = Addreq(i, 5, a, 2),
+				Request[++RequestNum] = Addreq(i, 6, a, 2),
+				Request[++RequestNum] = Addreq(i, 7, a, 2);
+			}
+			else
+				Point[7] += +12;
+		}
+		
+		if (color[i][x][y] & 8)
+		{
+			int a = (((gameField.fieldStatic[x][y] & 5) != 5) ? 1 : 0) + (((gameField.fieldStatic[gameField.players[i].row][gameField.players[i].col] & 5) != 5) ? 2 : 0);
+			
+			if (dec(gameField.players[i].col,w) == y)
+			{
+				if (gameField.players[i].strength == s) a |= 3;
+				if (gameField.players[i].strength < s) a |= 1;
+				if (gameField.players[i].strength > s) a |= 2;
+			}
+			
+			if (gameField.players[i].strength > 6)
+			{
+				Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * ((gameField.players[i].col-1+w)%w == y ? 0 : -9);
+				Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				
+				if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 1);
+				Request[++RequestNum] = Addreq(i, 0, a, 1);
+				Request[++RequestNum] = Addreq(i, 1, a, 1);
+				Request[++RequestNum] = Addreq(i, 2, a, 1);
+				Request[++RequestNum] = Addreq(i, 3, a, 1);
+				Request[++RequestNum] = Addreq(i, 4, a, 1);
+				Request[++RequestNum] = Addreq(i, 5, a, 1);
+				Request[++RequestNum] = Addreq(i, 6, a, 1);
+				Request[++RequestNum] = Addreq(i, 7, a, 0);
+			}
+			
+			if (a & 2)
+			{
+				Point[6] += Poss(Count[i][a][2], Count[i][a][3]) * +12,
+				Point[6] += Poss(Count[i][a][3], Count[i][a][2]) * -6;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 2),
+				Request[++RequestNum] = Addreq(i, 0, a, 3),
+				Request[++RequestNum] = Addreq(i, 1, a, 2),
+				Request[++RequestNum] = Addreq(i, 2, a, 3),
+				Request[++RequestNum] = Addreq(i, 3, a, 2),
+				Request[++RequestNum] = Addreq(i, 4, a, 2),
+				Request[++RequestNum] = Addreq(i, 5, a, 2),
+				Request[++RequestNum] = Addreq(i, 6, a, 2),
+				Request[++RequestNum] = Addreq(i, 7, a, 2);
+			}
+			else
+				Point[6] += +12;
+		}
+		
+		if (color[i][x][y] & 2)
+		{
+			int a = (((gameField.fieldStatic[x][y] & 5) != 5) ? 1 : 0) + (((gameField.fieldStatic[gameField.players[i].row][gameField.players[i].col] & 5) != 5) ? 2 : 0);
+			
+			if (inc(gameField.players[i].col,w) == y)
+			{
+				if (gameField.players[i].strength == s) a |= 3;
+				if (gameField.players[i].strength < s) a |= 1;
+				if (gameField.players[i].strength > s) a |= 2;
+			}
+			
+			if (gameField.players[i].strength > 6)
+			{
+				Point[0] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				Point[1] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				Point[2] += Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				Point[3] += Poss(Count[i][a][0], Count[i][a][1]) * 0;
+				Point[4] += Poss(Count[i][a][0], Count[i][a][1]) * ((gameField.players[i].col+1)%w == y ? 0 : -9);
+				
+				if ((gameField.fieldStatic[x][inc(y,w)] & 5) == 5) Point[2] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				if ((gameField.fieldStatic[x][dec(y,w)] & 5) == 5) Point[4] -= Poss(Count[i][a][0], Count[i][a][1]) * -9;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 1);
+				Request[++RequestNum] = Addreq(i, 0, a, 1);
+				Request[++RequestNum] = Addreq(i, 1, a, 1);
+				Request[++RequestNum] = Addreq(i, 2, a, 1);
+				Request[++RequestNum] = Addreq(i, 3, a, 1);
+				Request[++RequestNum] = Addreq(i, 4, a, 1);
+				Request[++RequestNum] = Addreq(i, 5, a, 0);
+				Request[++RequestNum] = Addreq(i, 6, a, 1);
+				Request[++RequestNum] = Addreq(i, 7, a, 1);
+			}
+			
+			if (a & 2)
+			{
+				Point[8] += Poss(Count[i][a][2], Count[i][a][3]) * +12,
+				Point[8] += Poss(Count[i][a][3], Count[i][a][2]) * -6;
+				
+				Request[++RequestNum] = Addreq(i, -1, a, 2),
+				Request[++RequestNum] = Addreq(i, 0, a, 3),
+				Request[++RequestNum] = Addreq(i, 1, a, 2),
+				Request[++RequestNum] = Addreq(i, 2, a, 3),
+				Request[++RequestNum] = Addreq(i, 3, a, 2),
+				Request[++RequestNum] = Addreq(i, 4, a, 2),
+				Request[++RequestNum] = Addreq(i, 5, a, 2),
+				Request[++RequestNum] = Addreq(i, 6, a, 2),
+				Request[++RequestNum] = Addreq(i, 7, a, 2);
+			}
+			else
+				Point[8] += +12;
+		}
+	}
+	
+	if ((gameField.fieldStatic[x][y] & 1) == 0)
+	{
+		x = dec(x,h);
+		rep(i, 0, 3) if (i != myID && (color[i][x][y] & 10) && gameField.players[i].strength > 6)
+		{
+			Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +6;
+			Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * -9;
+			Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			
+			Request[++RequestNum] = Addreq(i, -1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 0, 5, 1);
+			Request[++RequestNum] = Addreq(i, 1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 2, 5, 1);
+			Request[++RequestNum] = Addreq(i, 3, 5, 1);
+			Request[++RequestNum] = Addreq(i, 4, 5, 1);
+			Request[++RequestNum] = Addreq(i, 5, 5, (color[i][x][y]&2)?0:1);
+			Request[++RequestNum] = Addreq(i, 6, 5, 1);
+			Request[++RequestNum] = Addreq(i, 7, 5, (color[i][x][y]&8)?0:1);
+		}
+		x = tmpx;
+	}
+	
+	if ((gameField.fieldStatic[x][y] & 2) == 0)
+	{
+		y = inc(y,w);
+		rep(i, 0, 3) if (i != myID && (color[i][x][y] & 5) && gameField.players[i].strength > 6)
+		{
+			Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +6;
+			Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * -9;
+			Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			
+			Request[++RequestNum] = Addreq(i, -1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 0, 5, 1);
+			Request[++RequestNum] = Addreq(i, 1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 2, 5, 1);
+			Request[++RequestNum] = Addreq(i, 3, 5, 1);
+			Request[++RequestNum] = Addreq(i, 4, 5, (color[i][x][y]&1)?0:1);
+			Request[++RequestNum] = Addreq(i, 5, 5, 1);
+			Request[++RequestNum] = Addreq(i, 6, 5, (color[i][x][y]&5)?0:1);
+			Request[++RequestNum] = Addreq(i, 7, 5, 1);
+		}
+		y = tmpy;
+	}
+	
+	if ((gameField.fieldStatic[x][y] & 4) == 0)
+	{
+		x = inc(x,h);
+		rep(i, 0, 3) if (i != myID && (color[i][x][y] & 10) && gameField.players[i].strength > 6)
+		{
+			Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +6;
+			Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * -9;
+			Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			
+			Request[++RequestNum] = Addreq(i, -1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 0, 5, 1);
+			Request[++RequestNum] = Addreq(i, 1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 2, 5, 1);
+			Request[++RequestNum] = Addreq(i, 3, 5, 1);
+			Request[++RequestNum] = Addreq(i, 4, 5, 1);
+			Request[++RequestNum] = Addreq(i, 5, 5, (color[i][x][y]&2)?0:1);
+			Request[++RequestNum] = Addreq(i, 6, 5, 1);
+			Request[++RequestNum] = Addreq(i, 7, 5, (color[i][x][y]&8)?0:1);
+		}
+		x = tmpx;
+	}
+	
+	if ((gameField.fieldStatic[x][y] & 8) == 0)
+	{
+		y = dec(y,w);
+		rep(i, 0, 3) if (i != myID && (color[i][x][y] & 5) && gameField.players[i].strength > 6)
+		{
+			Point[0] += Poss(Count[i][5][0], Count[i][5][1]) * +6;
+			Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * -9;
+			Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * +1;
+			
+			Request[++RequestNum] = Addreq(i, -1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 0, 5, 1);
+			Request[++RequestNum] = Addreq(i, 1, 5, 1);
+			Request[++RequestNum] = Addreq(i, 2, 5, 1);
+			Request[++RequestNum] = Addreq(i, 3, 5, 1);
+			Request[++RequestNum] = Addreq(i, 4, 5, (color[i][x][y]&1)?0:1);
+			Request[++RequestNum] = Addreq(i, 5, 5, 1);
+			Request[++RequestNum] = Addreq(i, 6, 5, (color[i][x][y]&5)?0:1);
+			Request[++RequestNum] = Addreq(i, 7, 5, 1);
+		}
+		y = tmpy;
+	}
+	
+	rep(i, 0, 3) if (!gameField.players[i].dead && !color[myID][gameField.players[i].row][gameField.players[i].col])
+	{
+		int xx = gameField.players[i].row, yy = gameField.players[i].col;
+		
+		bool abc[9]; int tmpcount = 0;
+		
+		rep(d, 0, 8) abc[d] = 1;
+		
+		rep(d, 0, 3) if ((gameField.fieldStatic[xx][yy] & (1<<d)) == 0)
+		{
+			if (d == 0) xx = (xx-1+h) % h;
+			if (d == 1) yy = (yy+1+w) % w;
+			if (d == 2) xx = (xx+1+h) % h;
+			if (d == 3) yy = (yy-1+w) % w;
+			
+			if (color[myID][xx][yy])
+			{
+				if (color[myID][xx][yy] & 1) 
+					Point[5] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +12,
+					Point[5] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -6;
+				if (color[myID][xx][yy] & 2) 
+					Point[6] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +12,
+					Point[6] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -6;
+				if (color[myID][xx][yy] & 4) 
+					Point[7] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +12,
+					Point[7] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -6;
+				if (color[myID][xx][yy] & 8) 
+					Point[8] += Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1]) * +12,
+					Point[8] += (1 - Poss(Count[i][6][0], Count[i][6][1]) * Poss(Count[i][4][0], Count[i][4][1])) * -6;
+				
+				abc[d+1] = 0, tmpcount++;
+			}
+			
+			xx = gameField.players[i].row, yy = gameField.players[i].col;
+		}
+		
+		if (tmpcount) rep(d, 0, 8) Request[++RequestNum] = Addreq(i, d-1, 4, abc[d]);
+	}
+	
+	rep(a, 5, 8) if (FightMX == -1 || Point[a] > Point[FightMX]) FightMX = a;
+}
+
 bool way_cmp(Way a, Way b){return a.score > b.score;}
 
 void Init(Pacman::GameField &gameField, int o)
@@ -1043,50 +1490,79 @@ void Init(Pacman::GameField &gameField, int o)
 		Bean[o][i][j][a][b] = 0, Appear[o][i][j][a][b] = Pdd(0,0);
 }
 
+inline Pacman::Direction Final(Pacman::GameField &gameField, Pro a)
+{
+	if (Point[FightMX] >= 4 && gameField.players[myID].strength - (gameField.players[myID].powerUpLeft ? 10 : 0) > 6 && !danger) return v(FightMX-1);
+	
+	int mx = -1;
+	if (danger)
+	{
+		rep(i, 1, 4) if (mx == -1 || a.d[mx] < a.d[i]) mx = i;
+	}
+	else
+	{
+		rep(i, 0, 4) if (mx == -1 || a.d[mx] < a.d[i]) mx = i;
+	}
+	
+	
+	if (mx == 0 && Point[FightMX] > 0 && gameField.players[myID].strength > 6 && !danger) return v(FightMX-1);
+	
+	return v(mx-1);
+}
+
 bool tmpdead[MAX_PLAYER_COUNT];
 
 int ddd[10009];
 
 bool cmp_ddd(int a, int b){return Ways[a].pos > Ways[b].pos;}
 
-/* bool Fight(Pacman::GameField &gameField)
+inline Pii GO(Pii a, int d)
 {
-	rep(i, 0, 3) if (!gameField.players[i].dead) Label(i, gameField);
-		
-	if (color[gameField.players[MyID].row][gameField.players[MyID].col])
-	{
-		rep(i, 1, n)
-		{
-			Pacman::playerID2Mask[i]
-		}
-	}
-	rep(d, 0, 3)
-	{
-		int tmp = DirColor(MyID, d, gameField);
-		if (!tmp) continue;
-	}
-} */
+	if (d == 1) a.fi = (a.fi - 1 + h) % h;
+	if (d == 2) a.se = (a.se + 1) % w;
+	if (d == 3) a.fi = (a.fi + 1) % h;
+	if (d == 4) a.se = (a.se - 1 + w) % w;
+	return a;
+}
 
 #define opp_A 3
 #define opp_B 1000
 
 int main()
 {
-    ppow[0] = 1; rep(i, 1, 15) ppow[i] = ppow[i-1] * 0.95;
-    
+	ppow[0] = 1; rep(i, 1, 15) ppow[i] = ppow[i-1] * 0.95;
+	
 	Pacman::GameField gameField;
 
 							 // 如果在本地调试，有input.txt则会读取文件内容作为输入
 							 // 如果在平台上，则不会去检查有无input.txt
 	myID = gameField.ReadInput("input.txt", data, globalData); // 输入，并获得自己ID
 	
-	if (gameField.turnID == 0) globalData = "", data = "0";
+	if (gameField.turnID == 0)
+	{
+		globalData = "";
+		data = "";
+		rep(i, 1, 3)
+		{
+			data += "1 0 0 1 1 0 1 0 0 1 0 1 0 1 1 1 1 1";
+			data += '\n';
+		}
+		data += "0";
+		data += '\n';
+	}
+	
+	DealWithInputData(gameField);
 	
 	rep(i, 1, 50) Rand();
 	
-	//Pro now = FirstStep(gameField);
+	MaxTurn = gameField.GENERATOR_INTERVAL, h = gameField.height, w = gameField.width;
 	
-	MaxTurn = gameField.GENERATOR_INTERVAL;
+	rep(i, 0, 3) if (i != myID && gameField.players[i].strength > gameField.players[myID].strength)
+	{
+		for (Pacman::Direction d = Pacman::stay; d < 4; ++d)
+			if (gameField.ActionValid(i, d) && GO(Pii(gameField.players[i].row,gameField.players[i].col), d+1) == Pii(gameField.players[myID].row,gameField.players[myID].col))
+				danger = true;
+	}
 	
 	rep(Round, 1, opp_A)
 	{
@@ -1098,6 +1574,9 @@ int main()
 				continue;
 			
 			PlayerPro[PlayerID] = emptyPro;
+			
+			if (Round == opp_A && PlayerID == myID) 
+				Fight(gameField);
 			
 			tmpCount = gameField.aliveCount, gameField.aliveCount = 2;
 			rep(i, 0, MAX_PLAYER_COUNT-1) if (i!=PlayerID)
@@ -1126,6 +1605,16 @@ int main()
 					gameField.fieldContent[gameField.players[i].row][gameField.players[i].col] ^= Pacman::playerID2Mask[i]; 
 				gameField.players[i].dead = tmpdead[i];
 			}
+			if (Round == opp_A && PlayerID == myID)
+			{
+				rep(i, 1, WayCount) if (Ways[i].act[1] != -1) 
+					Ways[i].score += Point[Ways[i].act[1]+1]; 
+				else
+				{
+					Ways[i].score += Point[0];
+					if (Point[FightMX] > 0.1 && gameField.players[myID].strength > 6 && !danger) Ways[i].score += Point[FightMX] + 8;
+				}
+			}
 			
 			double Small = 1e90, Big = -1e90;
 			rep(i, 1, WayCount) Small = std::min(Small, Ways[i].score), Big = std::max(Big, Ways[i].score);
@@ -1134,6 +1623,8 @@ int main()
 			double d = 1, All = 0;
 			rep(i, 1, WayCount) if (i == 1 || Ways[ddd[i-1]].score - Ways[ddd[i]].score > 1e-6)
 				Ways[ddd[i]].pos *= d, All += Ways[ddd[i]].pos, d *= 0.95;
+			else
+				Ways[ddd[i]].pos = 0;
 			rep(i, 1, WayCount) Ways[i].pos /= All;
 			
 			rep(i, 1, WayCount)
@@ -1147,23 +1638,26 @@ int main()
 					rep(j, tmp+1, g.length) 
 						if ((tmp+gameField.turnID)/gameField.GENERATOR_INTERVAL == (j+gameField.turnID)/gameField.GENERATOR_INTERVAL)
 							Bean[page][g.x[tmp]][g.y[tmp]][PlayerID][j] += g.pos;
-					
-					Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + g.pos);
-					Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se += g.pos;
+					if (g.pos > 0)
+						Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + g.pos),
+						Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se += g.pos;
 				}
 			}
 		}
 	}
 	
+	DealWithOutputData();
+	
 	Pro now = PlayerPro[myID];
 	
-	// 输出当前游戏局面状态以供本地调试。注意提交到平台上会自动优化掉，不必担心。
-	// gameField.DebugPrint();
-
-	// 随机决定是否叫嚣
-	// 注意这里输出(maxD - 1)，是因为之前进行随机的时候数组下标（actionScore的下标）是0~4，而游戏要求的输出是-1~3
-	// 如果不使用上述方式得出自己动作，请不要保留这个-1.
+#ifdef _BOTZONE_ONLINE
+	Ds("Round"); Di(gameField.turnID); Dn();
+	globalData += data; Dn();
+	gameField.WriteOutput(Final(gameField, now), "Excited!", data, globalData);
+#else
+	gameField.WriteOutput(Final(gameField, now), "Excited!", data, "");
+#endif
 	
-	gameField.WriteOutput(RandDirOne(now), "Excited!", data, globalData);
+	
 	return 0;
 }
