@@ -1218,31 +1218,39 @@ int page = 0, WayCount;
 
 Pro PlayerPro[MAX_PLAYER_COUNT];
 
-double BeanScore[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_SEARCH];
+Pii BeanNow[409], BeanWill[409]; int Bean1, Bean2;
 
-inline void Bean(int o, int R)
+inline void BeanScoreInit()
 {
-	clr(BeanScore,0);
+	rep(i, 0, h-1) rep(j, 0, w-1) if (gameField.fieldContent[i][j] & (16+32)) BeanNow[++Bean1] = Pii(i,j);
 	
-	int xx = gameField.players[o].row, yy = gameField.players[o].col;
-	rep(x, 0, h-1) rep(y, 0, w-1) if (gameField.fieldContent[x][y] & (16+32)) rep(r, 0, R-1)
-	{
-		double d = 1;
-		//rep(i, 0, 3) if (i != o) d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]; else d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]*0.5;
-		rep(i, 0, 3) d *= 1 - eat[page^1][x][y][i][r];
-		
-		rep(i, 0, h-1) rep(j, 0, w-1) if (Dis[x][y][i][j] != inf && Dis[x][y][xx][yy] > Dis[x][y][i][j])
-			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1) * d * ppow3[std::max(r-Dis[x][y][xx][yy]+Dis[x][y][i][j]+1,0)];
-	}
-	
-	bool lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH]; clr(lb,0); 
+	bool lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH]; clr(lb,0);
 	rep(a, 0, h-1) rep(b, 0, w-1) if (gameField.fieldStatic[a][b] & 16) rep(c, -1, 1) rep(d, -1, 1) if (c!=0 || d!=0)
 		lb[(a+c+h)%h][(b+d+w)%w] = 1;
-	rep(x, 0, h-1) rep(y, 0, w-1) if (lb[x][y] && BeginturnID/Interval+1 == (BeginturnID+Dis[x][y][xx][yy])/Interval) rep(r, 0, R-1)
-	{
-		rep(i, 0, h-1) rep(j, 0, w-1) if (Dis[x][y][i][j] != inf && Dis[x][y][xx][yy] > Dis[x][y][i][j])
-			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1)*ppow[Interval-BeginturnID-r];
-	}
+	rep(i, 0, h-1) rep(j, 0, w-1) if (lb[i][j]) BeanWill[++Bean2] = Pii(i,j);
+}
+
+inline double BeanScore(int x0, int y0, int x1, int y1, int R)
+{
+	double Ans = 0;
+	
+	for(int i=1, x=BeanNow[i].fi, y=BeanNow[i].se; i<=Bean1; i++, x=BeanNow[i].fi, y=BeanNow[i].se) 
+		if ((gameField.fieldContent[x][y] & (16+32)) && Dis[x][y][x0][y0] > Dis[x][y][x1][y1])
+		{
+			double d = 1;
+			rep(i, 0, 3) d *= 1 - eat[page^1][x][y][i][R+Dis[x][y][x0][y0]];
+			Ans += (1.0/Dis[x][y][x1][y1]-1.0/Dis[x][y][x0][y0]) * d;
+		}
+	
+	for(int i=1, x=BeanWill[i].fi, y=BeanWill[i].se; i<=Bean2; i++, x=BeanWill[i].fi, y=BeanWill[i].se) 
+		if (BeginturnID/Interval+1 == (BeginturnID+Dis[x][y][x0][y0])/Interval && Dis[x][y][x0][y0] > Dis[x][y][x1][y1])
+		{
+			double d = 1;
+			rep(i, 0, 3) d *= 1 - eat[page^1][x][y][i][R+Dis[x][y][x0][y0]];
+			Ans += (1.0/Dis[x][y][x1][y1]-1.0/Dis[x][y][x0][y0]) * d;
+		}
+	
+	return Ans;
 }
 
 struct Way
@@ -1316,9 +1324,9 @@ inline void MC(Way &now, int PlayerID, int Round)
 		while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
 		if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
 		tmp *= 3;
-		//if (tmp == 0) tmp = -1;
+		if (tmp == 0) tmp = -1;
 		now.score += tmp * 1/L;
-		now.score += BeanScore[now.x[L]][now.y[L]][L-1];
+		now.score += BeanScore(now.x[L-1],now.y[L-1],now.x[L],now.y[L],L-1) * 1/L;
 		
 		double mn = 1e90;
 		rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
@@ -1329,8 +1337,8 @@ inline void MC(Way &now, int PlayerID, int Round)
 		else
 			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L) * (Round*0.1);
 		
-		if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 3;
-		if (now.act[L] == -1) now.score -= 1.5;
+		if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 2;
+		if (now.act[L] == -1) now.score -= 0.5;
 		
 		if (PlayerID == myID && Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
 			now.score -= 10 * ppow3[L-1];
@@ -2011,6 +2019,7 @@ int main()
 	
 	DealWithInputData();
 	
+	BeanScoreInit();
 	CountDis();
 	DeathPlace();
 	WallMap();
@@ -2032,8 +2041,6 @@ int main()
 		
 		rep(PlayerID, 0, 3) if (!gameField.players[PlayerID].dead)
 		{
-			Bean(PlayerID, Round);
-			
 			tmpCount = gameField.aliveCount, gameField.aliveCount = 2;
 			rep(i, 0, MAX_PLAYER_COUNT-1) if (i!=PlayerID)
 			{
@@ -2072,14 +2079,14 @@ int main()
 			
 			
 			
-/* #ifndef _BOTZONE_ONLINE
-			if (PlayerID == myID && Round == 3) rep(i, 1, opp_C)
+#ifndef _BOTZONE_ONLINE
+			if (PlayerID == myID && Round == -1) rep(i, 1, opp_C)
 			{
 				printf("Way %d(%d): %.6lf ", i, ddd[i], Ways[ddd[i]].score);
 				rep(j, 1, Ways[ddd[i]].length) printf("%d ", Ways[ddd[i]].act[j]);
 				puts("");
 			}
-#endif */
+#endif 
 			
 			
 			
@@ -2100,7 +2107,7 @@ int main()
 					if (a > 0)
 					{
 						eat[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp] += g.pos;
-						rep(j, tmp+1, g.length+1) 
+						rep(j, tmp+1, tmp+Interval)
 							if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
 								eat[page][g.x[tmp]][g.y[tmp]][PlayerID][j] += g.pos;
 					}
@@ -2108,7 +2115,11 @@ int main()
 			}
 		}
 		
-		if (Round != opp_A) opp_D *= 4;
+		if (Round != opp_A)
+		{
+			opp_D *= 4;
+			//rep(i, 0, 4) now.d[i] += PlayerPro[myID].d[i];
+		}
 		
 #ifndef _BOTZONE_ONLINE
 		rep(i, 0, 4) printf("%.5lf%c", PlayerPro[myID].d[i], i==4?'\n':' ');
@@ -2117,8 +2128,6 @@ int main()
 	
 	
 	Fight();
-	
-	Bean(myID, opp_A);
 	
 	tmpCount = gameField.aliveCount, gameField.aliveCount = 2;
 	rep(i, 0, MAX_PLAYER_COUNT-1) if (i!=myID)
