@@ -1082,7 +1082,7 @@ inline void WallMap()
 	std::queue<Pii> q;
 	
 	rep(i, 0, h-1) rep(j, 0, w-1) Short[i][j] = inf, Wall[i][j].fi = inf;
-	rep(i, 0, 3) if (i != myID && !gameField.players[i].dead && Short[gameField.players[i].row][gameField.players[i].col] && gameField.players[i].strength >= 6)
+	rep(i, 0, 3) if (i != myID && !gameField.players[i].dead && Short[gameField.players[i].row][gameField.players[i].col] && gameField.players[i].strength >= SkillCost)
 		q.push(Pii(gameField.players[i].row,gameField.players[i].col)), Short[gameField.players[i].row][gameField.players[i].col] = 0;
 	while (!q.empty())
 	{
@@ -1933,9 +1933,9 @@ void Init(int o)
 
 inline Pacman::Direction Final(Pro a)
 {
-	//if (Point[FightMX] >= SkillCost*0.75 && gameField.players[myID].strength - (gameField.players[myID].powerUpLeft ? 10 : 0) > SkillCost && !danger) return v(FightMX-1);
+	if (Point[FightMX] >= SkillCost*0.5 && gameField.players[myID].strength - (gameField.players[myID].powerUpLeft ? 10 : 0) > SkillCost && !danger) return v(FightMX-1);
 	
-	//if (Point[FightMX] >= SkillCost && gameField.players[myID].strength > SkillCost && !danger) return v(FightMX-1);
+	if (Point[FightMX] >= SkillCost && gameField.players[myID].strength > SkillCost && !danger) return v(FightMX-1);
 	
 	int mx = -1;
 	if (danger)
