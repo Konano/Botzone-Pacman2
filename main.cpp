@@ -2016,12 +2016,12 @@ int main()
 	WallMap();
 	Candy();
 	
-	/* rep(i, 0, 3) if (i != myID && gameField.players[i].strength > gameField.players[myID].strength)
+	rep(i, 0, 3) if (i != myID && gameField.players[i].strength > gameField.players[myID].strength)
 	{
 		for (Pacman::Direction d = Pacman::stay; d < 4; ++d)
 			if (gameField.ActionValid(i, d) && GO(Pii(gameField.players[i].row,gameField.players[i].col), d) == Pii(gameField.players[myID].row,gameField.players[myID].col))
 				danger = true;
-	} */
+	}
 	
 	int opp_D = 1;
 	rep(Round, 1, opp_A)
@@ -2108,7 +2108,7 @@ int main()
 			}
 		}
 		
-		opp_D *= 4;
+		if (Round != opp_A) opp_D *= 4;
 		
 #ifndef _BOTZONE_ONLINE
 		rep(i, 0, 4) printf("%.5lf%c", PlayerPro[myID].d[i], i==4?'\n':' ');
@@ -2116,10 +2116,12 @@ int main()
 	}
 	
 	
-	/* Fight();
+	Fight();
+	
+	Bean(myID, opp_A);
 	
 	tmpCount = gameField.aliveCount, gameField.aliveCount = 2;
-	rep(i, 0, 3) if (i!=myID)
+	rep(i, 0, MAX_PLAYER_COUNT-1) if (i!=myID)
 	{
 		tmpdead[i] = gameField.players[i].dead;
 		if (!gameField.players[i].dead)
@@ -2127,15 +2129,15 @@ int main()
 			gameField.fieldContent[gameField.players[i].row][gameField.players[i].col] ^= Pacman::playerID2Mask[i]; 
 	}
 	
-	WayCount = 0; Pro now = emptyPro;
+	WayCount = 0; PlayerPro[myID] = emptyPro;
 	
-	rep(i, 1, opp_B) for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(myID, d))
+	rep(i, 1, std::max(opp_B,opp_D)) for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(myID, d))
 	{
 		Way &now = Ways[++WayCount]; now = emptyWay;
 		now.strength[0] = gameField.players[myID].strength;
 		now.x[0] = gameField.players[myID].row;
 		now.y[0] = gameField.players[myID].col;
-		MC(now, myID, opp_A-1);
+		MC(now, myID, opp_A);
 	}
 	
 	gameField.aliveCount = tmpCount;
@@ -2161,56 +2163,24 @@ int main()
 	rep(i, 1, opp_C) Ways[ddd[i]].pos = Between(Small, Big, Ways[ddd[i]].score) * d, All += Ways[ddd[i]].pos, d *= 0.95;
 	rep(i, 1, opp_C) Ways[ddd[i]].pos /= All;
 	
-#ifndef _BOTZONE_ONLINE
-	rep(i, 1, opp_C)
-	{
-		printf("Way %d(%d): %.6lf ", i, ddd[i], Ways[ddd[i]].score);
-		rep(j, 1, Ways[ddd[i]].length) printf("%d ", Ways[ddd[i]].act[j]);
-		puts("");
-	}
-#endif
-	
-	rep(i, 1, opp_C)
-	{
-		Way &g = Ways[ddd[i]]; 
-		now.d[g.act[1]+1] += g.pos;
-		
-		if (g.pos > 0) rep(tmp, 0, g.length)
-		{
-			Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + g.pos),
-			Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se += g.pos;
-		}
-		
-		rep(tmp, 1, g.length)
-		{
-			int a = g.strength[tmp] - g.strength[tmp-1];
-			while (a < 0) a += gameField.LARGE_FRUIT_ENHANCEMENT;
-			
-			if (a > 0)
-			{
-				eat[page][g.x[tmp]][g.y[tmp]][myID][tmp] += g.pos;
-				rep(j, tmp+1, g.length+1) 
-					if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
-						eat[page][g.x[tmp]][g.y[tmp]][myID][j] += g.pos;
-			}
-		}
-	}
+	Pro now = emptyPro;
+	rep(i, 1, opp_C) now.d[Ways[ddd[i]].act[1]+1] += Ways[ddd[i]].pos;
 	
 	
 #ifndef _BOTZONE_ONLINE
 	rep(i, 0, 4) printf("%.5lf%c", now.d[i], i==4?'\n':' ');
-#endif */
+#endif
 	
-	Pro now = PlayerPro[myID];
+	
 	
 	DealWithOutputData();
 	
 #ifdef _BOTZONE_ONLINE
 	Ds("Round"); Di(gameField.turnID); Dn();
 	globalData += data; Dn();
-	gameField.WriteOutput(Final(now), "Excited!", data, globalData);
+	gameField.WriteOutput(Final(now), "", data, globalData);
 #else
-	gameField.WriteOutput(Final(now), "Excited!", data, "");
+	gameField.WriteOutput(Final(now), "", data, "");
 #endif
 	
 	return 0;
