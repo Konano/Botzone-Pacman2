@@ -1337,7 +1337,7 @@ inline void MC(Way &now, int PlayerID, int Round)
 			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L) * (Round*0.1);
 		
 		if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 2;
-		if (now.act[L] == -1) now.score -= 0.5;
+		//if (now.act[L] == -1) now.score -= 0.5;
 		
 		if (PlayerID == myID && Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
 			now.score -= 10 * ppow3[L-1];
@@ -1415,7 +1415,7 @@ void Fight()
 		PlayWall[i] = (((PlayWall[i] & 5) == 5) ? 1 : 0) | (((PlayWall[i] & 10) == 10) ? 2 : 0); // Up-down Wall is 1, Left-right Wall is 2
 	}
 	
-	rep(i, 0, 3) if (i != myID && Count[i][PlayWall[i]?0:2][0]>=Count[i][PlayWall[i]?0:2][1]) // Small Bug
+	rep(i, 0, 3) if (i != myID && Count[i][PlayWall[i]?0:2][0]>=Count[i][PlayWall[i]?0:2][1] && gameField.players[i].strength>SkillCost) // Small Bug
 		for(int x = gameField.players[i].row, y = gameField.players[i].col, j = 0; j < 4; j++) 
 			if (j != myID && j != i && (color[j][x][y] & 15) && PlayWall[j])
 			{
@@ -2079,7 +2079,7 @@ int main()
 			
 			
 #ifndef _BOTZONE_ONLINE
-			if (PlayerID == myID && Round == -1) rep(i, 1, opp_C)
+			if (PlayerID == myID && Round == 5) rep(i, 1, opp_C)
 			{
 				printf("Way %d(%d): %.6lf ", i, ddd[i], Ways[ddd[i]].score);
 				rep(j, 1, Ways[ddd[i]].length) printf("%d ", Ways[ddd[i]].act[j]);
