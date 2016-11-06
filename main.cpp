@@ -1172,7 +1172,7 @@ inline void Candy()
 		{
 			Pii a = q.front(); q.pop(); int v = lb[a.fi][a.se];
 			if (v == 0) FirstRoundMap[a.fi][a.se] -= 20;
-			if (v == 1) {FirstRoundMap[a.fi][a.se] -= 10; continue;}
+			if (v == 1) {FirstRoundMap[a.fi][a.se] -= 15; continue;}
 			rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0) 
 			{
 				a = GO(a, d); 
@@ -1523,7 +1523,7 @@ void Fight()
 			
 			if (s > SkillCost)
 			{
-				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15))))
+				if (((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15)))) || ((a & 1) == 0))
 				{
 					Point[5] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[5] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
@@ -1539,6 +1539,7 @@ void Fight()
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
 				if ((a & 2) == 0) Point[5] += +SkillCost*0.5;
+				if ((a & 1) == 0) Point[5] += +SkillCost*0.5;
 			}
 		}
 		
@@ -1594,7 +1595,7 @@ void Fight()
 			
 			if (s > SkillCost)
 			{
-				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15))))
+				if (((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15)))) || ((a & 1) == 0))
 				{
 					Point[7] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[7] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
@@ -1610,6 +1611,7 @@ void Fight()
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
 				if ((a & 2) == 0) Point[7] += +SkillCost*0.5;
+				if ((a & 1) == 0) Point[7] += +SkillCost*0.5;
 			}
 		}
 		
@@ -1665,7 +1667,7 @@ void Fight()
 			
 			if (s > SkillCost)
 			{
-				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15))))
+				if (((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15)))) || ((a & 1) == 0))
 				{
 					Point[6] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[6] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
@@ -1681,6 +1683,7 @@ void Fight()
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
 				if ((a & 2) == 0) Point[6] += +SkillCost*0.5;
+				if ((a & 1) == 0) Point[6] += +SkillCost*0.5;
 			}
 		}
 		
@@ -1736,7 +1739,7 @@ void Fight()
 			
 			if (s > SkillCost)
 			{
-				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15))))
+				if (((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15)))) || ((a & 1) == 0))
 				{
 					Point[8] += Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1]) * +SkillCost*0.5,
 					Point[8] += (1.0 - Poss(Count[i][a][2], Count[i][a][3]) * Poss(Count[i][6][0], Count[i][6][1])) * -SkillCost;
@@ -1752,6 +1755,7 @@ void Fight()
 					Request[++RequestNum] = Addreq(i, 7, a, 2);
 				}
 				if ((a & 2) == 0) Point[8] += +SkillCost*0.5;
+				if ((a & 1) == 0) Point[8] += +SkillCost*0.5;
 			}
 		}
 	}
@@ -1973,7 +1977,7 @@ inline Pacman::Direction Final(Pro a)
 		rep(i, 0, 4) if (mx == -1 || a.d[mx] < a.d[i]) mx = i;
 	}
 	
-	if (mx == 0 && Point[FightMX] > 0 && gameField.players[myID].strength > SkillCost && !danger) return v(FightMX-1);
+	if (mx == 0 && Point[FightMX] > SkillCost*0.3 && gameField.players[myID].strength > SkillCost && !danger) return v(FightMX-1);
 	
 	return v(mx-1);
 }
@@ -2187,7 +2191,7 @@ int main()
 	else
 	{
 		Ways[i].score += Point[0];
-		if (Point[FightMX] > 0.1 && gameField.players[myID].strength > SkillCost && !danger) Ways[i].score += Point[FightMX];
+		if (Point[FightMX] > SkillCost*0.3 && gameField.players[myID].strength > SkillCost && !danger) Ways[i].score += Point[FightMX];
 	}
 	
 	rep(i, 1, WayCount) ddd[i] = i;
