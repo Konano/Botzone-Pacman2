@@ -1206,7 +1206,7 @@ inline void Candy()
 
 // Monte Carlo Search
 
-#define MAX_SEARCH 8
+#define MAX_SEARCH 7
 
 double ppow[59], ppow2[59], ppow3[59];
 	
@@ -1228,16 +1228,17 @@ inline void Bean(int o, int R)
 	rep(x, 0, h-1) rep(y, 0, w-1) if (gameField.fieldContent[x][y] & (16+32)) rep(r, 0, R-1)
 	{
 		double d = 1;
-		rep(i, 0, 3) if (i != o) d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]; else d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]*0.5;
+		//rep(i, 0, 3) if (i != o) d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]; else d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]*0.5;
+		rep(i, 0, 3) d *= 1 - eat[page^1][x][y][i][r];
 		
 		rep(i, 0, h-1) rep(j, 0, w-1) if (Dis[x][y][i][j] != inf && Dis[x][y][xx][yy] > Dis[x][y][i][j])
-			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1) * d;
+			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1) * d * ppow3[std::max(r-Dis[x][y][xx][yy]+Dis[x][y][i][j]+1,0)];
 	}
 	
 	bool lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH]; clr(lb,0); 
 	rep(a, 0, h-1) rep(b, 0, w-1) if (gameField.fieldStatic[a][b] & 16) rep(c, -1, 1) rep(d, -1, 1) if (c!=0 || d!=0)
 		lb[(a+c+h)%h][(b+d+w)%w] = 1;
-	rep(x, 0, h-1) rep(y, 0, w-1) if (lb[x][y]) rep(r, 0, R-1) if ((BeginturnID+r)/Interval == 0)
+	rep(x, 0, h-1) rep(y, 0, w-1) if (lb[x][y] && BeginturnID/Interval == 0 && (BeginturnID+Dis[x][y][xx][yy])/Interval) rep(r, 0, R-1)
 	{
 		rep(i, 0, h-1) rep(j, 0, w-1) if (Dis[x][y][i][j] != inf && Dis[x][y][xx][yy] > Dis[x][y][i][j])
 			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1)*ppow[Interval-BeginturnID-r];
@@ -1264,7 +1265,7 @@ inline void MC(Way &now, int PlayerID, int Round)
 	{
 		if (L == 1 && PlayerID == myID) now.score += FirstRoundMap[now.x[L]][now.y[L]];
 		
-		if (L == Round+1 || gameField.turnID >= MAX_TURN)
+		if (L == Round || gameField.turnID >= MAX_TURN)
 		{
 			now.length = L; break;
 		}
@@ -1314,6 +1315,7 @@ inline void MC(Way &now, int PlayerID, int Round)
 		
 		while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
 		if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
+		tmp *= 3;
 		//if (tmp == 0) tmp = -1;
 		now.score += tmp * (1.0/L+1);
 		now.score += BeanScore[now.x[L]][now.y[L]][L-1];
@@ -1949,7 +1951,7 @@ int ddd[10009];
 
 bool cmp_ddd(int a, int b){return Ways[a].score > Ways[b].score;}
 
-#define opp_A 6
+#define opp_A 5
 #define opp_B 20
 #define opp_C std::min(WayCount,100)
 
