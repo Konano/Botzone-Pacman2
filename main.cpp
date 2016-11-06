@@ -1081,8 +1081,8 @@ inline void WallMap()
 	int Short[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
 	std::queue<Pii> q;
 	
-	rep(i, 0, h-1) rep(j, 0, w-1) Short[i][j] = inf, Wall[i][j].fi = inf;
-	rep(i, 0, 3) if (i != myID && !gameField.players[i].dead && Short[gameField.players[i].row][gameField.players[i].col] && gameField.players[i].strength >= SkillCost)
+	rep(i, 0, h-1) rep(j, 0, w-1) Short[i][j] = inf;
+	rep(i, 0, 3) if (i != myID && !gameField.players[i].dead && Short[gameField.players[i].row][gameField.players[i].col] && gameField.players[i].strength >= gameField.players[myID].strength)
 		q.push(Pii(gameField.players[i].row,gameField.players[i].col)), Short[gameField.players[i].row][gameField.players[i].col] = 0;
 	while (!q.empty())
 	{
@@ -1096,6 +1096,20 @@ inline void WallMap()
 	}
 	
 	rep(i, 0, h-1) rep(j, 0, w-1) if (DeathMap[i][j].fi) DeathShort[i][j] = Short[Control[i][j].fi][Control[i][j].se];
+	
+	rep(i, 0, h-1) rep(j, 0, w-1) Short[i][j] = inf, Wall[i][j].fi = inf;
+	rep(i, 0, 3) if (i != myID && !gameField.players[i].dead && Short[gameField.players[i].row][gameField.players[i].col] && gameField.players[i].strength >= SkillCost)
+		q.push(Pii(gameField.players[i].row,gameField.players[i].col)), Short[gameField.players[i].row][gameField.players[i].col] = 0;
+	while (!q.empty())
+	{
+		Pii a = q.front(); q.pop(); int v = Short[a.fi][a.se];
+		rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0) 
+		{
+			a = GO(a, d); 
+			if (Short[a.fi][a.se] == inf) q.push(a), Short[a.fi][a.se] = v+1;
+			a = GO(a, (d+2)%4);
+		}
+	}
 	
 	rep(i, 0, h-1) rep(j, 0, w-1) if ((gameField.fieldStatic[i][j] & 5) != 5 && (gameField.fieldStatic[i][j] & 10) != 10)
 		q.push(Pii(i,j)), Wall[i][j].fi = 0;
@@ -1396,7 +1410,19 @@ void Draw(int PlayerID)
 
 int Pred[MAX_PLAYER_COUNT];
 
-int PlayWall[MAX_PLAYER_COUNT];
+int PlayWall0[MAX_PLAYER_COUNT], PlayWall[MAX_PLAYER_COUNT];
+
+inline bool CanAvoid(int a, int b)
+{
+	Pii tmp = Pii(gameField.players[a].row,gameField.players[a].col);
+	rep(d, 0, 3) if (PlayWall0[a] & (1<<d)) continue; else
+	{
+		tmp = GO(tmp, d);
+		if (!(color[b][tmp.fi][tmp.se] & 15)) return true;
+		tmp = GO(tmp, d^2);
+	}
+	return false;
+}
 
 void Fight()
 {
@@ -1404,15 +1430,15 @@ void Fight()
 	
 	rep(i, 0, 3) if (!gameField.players[i].dead)
 	{
-		PlayWall[i] = (gameField.fieldStatic[gameField.players[i].row][gameField.players[i].col] & 15);
+		PlayWall0[i] = (gameField.fieldStatic[gameField.players[i].row][gameField.players[i].col] & 15);
 		rep(j, 0, 3) if (!gameField.players[j].dead && gameField.players[i].strength<gameField.players[j].strength && (color[j][gameField.players[i].row][gameField.players[i].col] & 15))
 		{
-			if (dec(gameField.players[i].row,h) == gameField.players[j].row) PlayWall[i] |= 1;
-			if (inc(gameField.players[i].col,w) == gameField.players[j].col) PlayWall[i] |= 2;
-			if (inc(gameField.players[i].row,h) == gameField.players[j].row) PlayWall[i] |= 4;
-			if (dec(gameField.players[i].col,w) == gameField.players[j].col) PlayWall[i] |= 8;
+			if (dec(gameField.players[i].row,h) == gameField.players[j].row) PlayWall0[i] |= 1;
+			if (inc(gameField.players[i].col,w) == gameField.players[j].col) PlayWall0[i] |= 2;
+			if (inc(gameField.players[i].row,h) == gameField.players[j].row) PlayWall0[i] |= 4;
+			if (dec(gameField.players[i].col,w) == gameField.players[j].col) PlayWall0[i] |= 8;
 		}
-		PlayWall[i] = (((PlayWall[i] & 5) == 5) ? 1 : 0) | (((PlayWall[i] & 10) == 10) ? 2 : 0); // Up-down Wall is 1, Left-right Wall is 2
+		PlayWall[i] = (((PlayWall0[i] & 5) == 5) ? 1 : 0) | (((PlayWall0[i] & 10) == 10) ? 2 : 0); // Up-down Wall is 1, Left-right Wall is 2
 	}
 	
 	rep(i, 0, 3) if (i != myID && Count[i][PlayWall[i]?0:2][0]>=Count[i][PlayWall[i]?0:2][1] && gameField.players[i].strength>SkillCost) // Small Bug
@@ -1447,7 +1473,7 @@ void Fight()
 		
 		if (color[i][x][y] & 4)
 		{
-			int a = ((PlayWall[myID] & 2) ? 0 : 1) + ((PlayWall[i] & 2) ? 0 : 2);
+			int a = (CanAvoid(myID,i) ? 1 : 0) + (CanAvoid(i,myID) ? 2 : 0);
 			
 			if (gameField.players[i].strength > SkillCost)
 			{
@@ -1518,7 +1544,7 @@ void Fight()
 		
 		if (color[i][x][y] & 1)
 		{
-			int a = ((PlayWall[myID] & 2) ? 0 : 1) + ((PlayWall[i] & 2) ? 0 : 2);
+			int a = (CanAvoid(myID,i) ? 1 : 0) + (CanAvoid(i,myID) ? 2 : 0);
 			
 			if (gameField.players[i].strength > SkillCost)
 			{
@@ -1589,7 +1615,7 @@ void Fight()
 		
 		if (color[i][x][y] & 8)
 		{
-			int a = ((PlayWall[myID] & 1) ? 0 : 1) + ((PlayWall[i] & 1) ? 0 : 2);
+			int a = (CanAvoid(myID,i) ? 1 : 0) + (CanAvoid(i,myID) ? 2 : 0);
 			
 			if (gameField.players[i].strength > SkillCost)
 			{
@@ -1660,7 +1686,7 @@ void Fight()
 		
 		if (color[i][x][y] & 2)
 		{
-			int a = ((PlayWall[myID] & 1) ? 0 : 1) + ((PlayWall[i] & 1) ? 0 : 2);
+			int a = (CanAvoid(myID,i) ? 1 : 0) + (CanAvoid(i,myID) ? 2 : 0);
 			
 			if (gameField.players[i].strength > SkillCost)
 			{
@@ -2027,7 +2053,7 @@ int main()
 	rep(i, 0, 3) if (i != myID && gameField.players[i].strength > gameField.players[myID].strength)
 	{
 		for (Pacman::Direction d = Pacman::stay; d < 4; ++d)
-			if (gameField.ActionValid(i, d) && GO(Pii(gameField.players[i].row,gameField.players[i].col), d) == Pii(gameField.players[myID].row,gameField.players[myID].col))
+			if (gameField.ActionValid(i, d) && GO(Pii(gameField.players[i].row,gameField.players[i].col), d+1) == Pii(gameField.players[myID].row,gameField.players[myID].col))
 				danger = true;
 	}
 	
