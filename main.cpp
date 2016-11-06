@@ -928,43 +928,74 @@ inline Pii GO(Pii a, int d)
 	return a;
 }
 
+
+int Count[MAX_PLAYER_COUNT][7][6];
+
+struct Req{int a, b, c, d;} Request[10009]; int RequestNum;
+
+Req Addreq(int a, int b, int c, int d){return (Req){a,b,c,d};}
+
+void DealWithInputData()
+{
+	std::istringstream istr(data);
+	rep(a, 0, 3) if (a != myID)
+	{
+		rep(i, 0, 1) rep(j, 0, 1) istr >> Count[a][i][j];
+		rep(i, 2, 3) rep(j, 0, 3) istr >> Count[a][i][j];
+		rep(i, 4, 6) rep(j, 0, 1) istr >> Count[a][i][j];
+		rep(j, 4, 5) istr >> Count[a][1][j];
+		rep(j, 4, 5) istr >> Count[a][3][j];
+		rep(j, 2, 3) istr >> Count[a][5][j];
+	}
+	int n, a, b, c, d; istr >> n; if (!n) return;
+	
+	const Pacman::TurnStateTransfer &bt = gameField.backtrack[gameField.turnID-1];
+	rep(i, 1, n)
+	{
+		istr >> a >> b >> c >> d;
+		if (bt.actions[a] == b) Count[a][c][d]++;
+	}
+}
+
+void DealWithOutputData()
+{
+	std::ostringstream ostr;
+	rep(a, 0, 3) if (a != myID)
+	{
+		rep(i, 0, 1) rep(j, 0, 1) ostr << Count[a][i][j] << ' ';
+		rep(i, 2, 3) rep(j, 0, 3) ostr << Count[a][i][j] << ' ';
+		rep(i, 4, 6) rep(j, 0, 1) ostr << Count[a][i][j] << ' ';
+		rep(j, 4, 5) ostr << Count[a][1][j] << ' ';
+		rep(j, 4, 5) ostr << Count[a][3][j] << ' ';
+		rep(j, 2, 3) ostr << Count[a][5][j] << ' ';
+		ostr << '\n';
+	}
+	ostr << RequestNum << ' ' << '\n';
+	rep(i, 1, RequestNum) ostr << Request[i].a << ' ' << Request[i].b << ' ' << Request[i].c << ' ' << Request[i].d << ' ' << '\n';
+	data = ostr.str();
+}
+
+
 // Value
 
 #include <queue>
 #define inf 0x3fffffff
 
-int BeanBlock[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], H[409];
+int Dis[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
 
-int Head(int x){return x==H[x]?x:(H[x]=Head(H[x]));}
-inline void Union(int a, int b){a=Head(a); b=Head(b); if (a!=b) H[b] = a;}
-inline void Block()
+inline void CountDis()
 {
-	int lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], Sz[409], tmp_block, Short[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
-	std::queue <Pii> q;
-	clr(Sz,0); clr(lb,0); tmp_block = 0;
-	
-	rep(i, 0, h-1) rep(j, 0, w-1) if (gameField.fieldStatic[i][j] & 16) 
-		rep(a, -1, 1) rep(b, -1, 1) if (a!=0 || b!=0) 
-			++tmp_block, H[lb[(i+a+h)%h][(j+b+w)%w] = tmp_block] = tmp_block;
-	rep(i, 0, h-1) rep(j, 0, w-1) if (lb[i][j])
+	rep(x0, 0, h-1) rep(y0, 0, w-1) rep(x1, 0, h-1) rep(y1, 0, w-1) Dis[x0][y0][x1][y1] = inf;
+	rep(x, 0, h-1) rep(y, 0, w-1) 
 	{
-		rep(a, 0, h-1) rep(b, 0, w-1) Short[a][b] = inf;
-		q.push(Pii(i,j)), Short[i][j] = 0;
-		while (!q.empty())
-		{
-			Pii a = q.front(); q.pop(); int v = Short[a.fi][a.se];
-			if (lb[a.fi][a.se]) Union(lb[i][j], lb[a.fi][a.se]);
-			if (v == 3) continue;
-			rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0) 
-			{
-				a = GO(a, d); 
-				if (Short[a.fi][a.se] == inf) q.push(a), Short[a.fi][a.se] = v+1;
-				a = GO(a, d^2);
-			}
-		}
+		Dis[x][y][x][y] = 0;
+		if ((gameField.fieldStatic[x][y] & 1) == 0) Dis[x][y][dec(x,h)][y] = 1;
+		if ((gameField.fieldStatic[x][y] & 2) == 0) Dis[x][y][x][inc(y,w)] = 1;
+		if ((gameField.fieldStatic[x][y] & 4) == 0) Dis[x][y][inc(x,h)][y] = 1;
+		if ((gameField.fieldStatic[x][y] & 8) == 0) Dis[x][y][x][dec(y,w)] = 1;
 	}
-	rep(i, 1, tmp_block) Sz[Head(i)]++;
-	rep(i, 0, h-1) rep(j, 0, w-1) BeanBlock[i][j] = Sz[H[lb[i][j]]];
+	rep(x0, 0, h-1) rep(y0, 0, w-1) rep(x1, 0, h-1) rep(y1, 0, w-1) rep(x2, 0, h-1) rep(y2, 0, w-1) 
+		Dis[x1][y1][x2][y2] = std::min(Dis[x1][y1][x2][y2], Dis[x1][y1][x0][y0]+Dis[x0][y0][x2][y2]);
 }
 
 Pii Control[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH], DeathMap[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
@@ -1128,8 +1159,7 @@ inline void Candy()
 		{
 			Pii a = q.front(); q.pop(); int v = lb[a.fi][a.se];
 			if (v == 0) FirstRoundMap[a.fi][a.se] -= 20;
-			if (v == 1) FirstRoundMap[a.fi][a.se] -= 15;
-			if (v == 2) {FirstRoundMap[a.fi][a.se] -= 10; continue;}
+			if (v == 1) {FirstRoundMap[a.fi][a.se] -= 10; continue;}
 			rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0) 
 			{
 				a = GO(a, d); 
@@ -1176,17 +1206,43 @@ inline void Candy()
 
 // Monte Carlo Search
 
-#define MAX_SEARCH 22
+#define MAX_SEARCH 8
 
-double ppow[59], ppow2[59];
+double ppow[59], ppow2[59], ppow3[59];
 	
-double Bean[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][MAX_SEARCH];
+double eat[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][MAX_SEARCH];
 
 Pdd Appear[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][MAX_SEARCH];
 
 int page = 0, WayCount;
 
 Pro PlayerPro[MAX_PLAYER_COUNT];
+
+double BeanScore[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_SEARCH];
+
+inline void Bean(int o, int R)
+{
+	clr(BeanScore,0);
+	
+	int xx = gameField.players[o].row, yy = gameField.players[o].col;
+	rep(x, 0, h-1) rep(y, 0, w-1) if (gameField.fieldContent[x][y] & (16+32)) rep(r, 0, R-1)
+	{
+		double d = 1;
+		rep(i, 0, 3) if (i != o) d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]; else d *= 1 - eat[page^1][x][y][i][r]*ppow2[r]*0.5;
+		
+		rep(i, 0, h-1) rep(j, 0, w-1) if (Dis[x][y][i][j] != inf && Dis[x][y][xx][yy] > Dis[x][y][i][j])
+			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1) * d;
+	}
+	
+	bool lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH]; clr(lb,0); 
+	rep(a, 0, h-1) rep(b, 0, w-1) if (gameField.fieldStatic[a][b] & 16) rep(c, -1, 1) rep(d, -1, 1) if (c!=0 || d!=0)
+		lb[(a+c+h)%h][(b+d+w)%w] = 1;
+	rep(x, 0, h-1) rep(y, 0, w-1) if (lb[x][y]) rep(r, 0, R-1) if ((BeginturnID+r)/Interval == 0)
+	{
+		rep(i, 0, h-1) rep(j, 0, w-1) if (Dis[x][y][i][j] != inf && Dis[x][y][xx][yy] > Dis[x][y][i][j])
+			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1)*ppow[Interval-BeginturnID-r];
+	}
+}
 
 struct Way
 {
@@ -1202,13 +1258,13 @@ inline int Pre(Way &now)
 
 inline void MC(Way &now, int PlayerID, int Round)
 {
-	int L = 0; bool fg1 = false;
+	int L = 0;
 	
 	while (true)
 	{
 		if (L == 1 && PlayerID == myID) now.score += FirstRoundMap[now.x[L]][now.y[L]];
 		
-		if (L == MAX_SEARCH-2 || gameField.turnID >= MAX_TURN)
+		if (L == Round+1 || gameField.turnID >= MAX_TURN)
 		{
 			now.length = L; break;
 		}
@@ -1252,89 +1308,36 @@ inline void MC(Way &now, int PlayerID, int Round)
 		tmp = -gameField.players[PlayerID].strength;
 		gameField.NextTurn();
 		tmp += gameField.players[PlayerID].strength;
-		while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
-		if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
-		if (tmp == 0) tmp = -1;
-		if (PlayerID == myID && gameField.turnID >= 20 && BeanBlock[now.x[L]][now.y[L]]) tmp += log(BeanBlock[now.x[L]][now.y[L]])/log(4);
-		
 		now.x[L] = gameField.players[PlayerID].row;
 		now.y[L] = gameField.players[PlayerID].col;
 		now.strength[L] = gameField.players[PlayerID].strength;
 		
-		double d = 1;
-		rep(i, 0, 3) if (i != PlayerID && Bean[page^1][now.x[L]][now.y[L]][i][L] >= 0.4)
-			d *= 1 - Bean[page^1][now.x[L]][now.y[L]][i][L];
-		d = 1 - (1-d) * (Round*0.5);
-		now.score += d * tmp * (1.0/L+1);
-		if (BeginturnID <= 10 && PlayerID == myID && BeanBlock[now.x[L]][now.y[L]] && !fg1) 
-			now.score += log(BeanBlock[now.x[L]][now.y[L]])/log(2) * log(MAX_SEARCH-1-L)/log(2), fg1 = true;
+		while (tmp < 0) tmp += gameField.LARGE_FRUIT_ENHANCEMENT;
+		if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
+		//if (tmp == 0) tmp = -1;
+		now.score += tmp * (1.0/L+1);
+		now.score += BeanScore[now.x[L]][now.y[L]][L-1];
 		
 		double mn = 1e90;
 		rep(i, 0, 3) if (i != PlayerID && Appear[page^1][now.x[L]][now.y[L]][i][L].se + Appear[page^1][now.x[L]][now.y[L]][i][L-1].se > 0)
 			mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
 		if (mn == 1e90) mn = 0;
 		if (PlayerID == myID)
-			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-1-L) * (Round*0.5);
+			now.score += mn * (mn < 0 ? 10 : 0) * log(MAX_SEARCH-L) * (Round*0.5);
 		else
-			now.score += mn * 10 * log(MAX_SEARCH-1-L) * (Round*0.3);
+			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L) * (Round*0.3);
 		
-		if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 1;
-		if (now.act[L] == -1) now.score -= 1;
+		if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 3;
+		if (now.act[L] == -1) now.score -= 1.5;
 		
-		if (Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
-			now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
+		if (PlayerID == myID && Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
+			now.score -= 10 * ppow3[L-1];
 		
-		if (DeathMap[now.x[L]][now.y[L]].fi && DeathMap[now.x[L]][now.y[L]].fi+1-std::max(DeathShort[now.x[L]][now.y[L]]-1-L,0)>=2)
-			now.score -= 20 * ppow2[L-1] * (PlayerID == myID ? 1 : 0.5);
+		if (PlayerID == myID && DeathMap[now.x[L]][now.y[L]].fi && DeathMap[now.x[L]][now.y[L]].fi+1-std::max(DeathShort[now.x[L]][now.y[L]]-1-L,0)>=2)
+			now.score -= 10 * ppow3[L-1];
 	}
 	
 	while (L--) gameField.PopState();
-}
-
-int Count[MAX_PLAYER_COUNT][7][6];
-
-struct Req{int a, b, c, d;} Request[10009]; int RequestNum;
-
-Req Addreq(int a, int b, int c, int d){return (Req){a,b,c,d};}
-
-void DealWithInputData()
-{
-	std::istringstream istr(data);
-	rep(a, 0, 3) if (a != myID)
-	{
-		rep(i, 0, 1) rep(j, 0, 1) istr >> Count[a][i][j];
-		rep(i, 2, 3) rep(j, 0, 3) istr >> Count[a][i][j];
-		rep(i, 4, 6) rep(j, 0, 1) istr >> Count[a][i][j];
-		rep(j, 4, 5) istr >> Count[a][1][j];
-		rep(j, 4, 5) istr >> Count[a][3][j];
-		rep(j, 2, 3) istr >> Count[a][5][j];
-	}
-	int n, a, b, c, d; istr >> n; if (!n) return;
-	
-	const Pacman::TurnStateTransfer &bt = gameField.backtrack[gameField.turnID-1];
-	rep(i, 1, n)
-	{
-		istr >> a >> b >> c >> d;
-		if (bt.actions[a] == b) Count[a][c][d]++;
-	}
-}
-
-void DealWithOutputData()
-{
-	std::ostringstream ostr;
-	rep(a, 0, 3) if (a != myID)
-	{
-		rep(i, 0, 1) rep(j, 0, 1) ostr << Count[a][i][j] << ' ';
-		rep(i, 2, 3) rep(j, 0, 3) ostr << Count[a][i][j] << ' ';
-		rep(i, 4, 6) rep(j, 0, 1) ostr << Count[a][i][j] << ' ';
-		rep(j, 4, 5) ostr << Count[a][1][j] << ' ';
-		rep(j, 4, 5) ostr << Count[a][3][j] << ' ';
-		rep(j, 2, 3) ostr << Count[a][5][j] << ' ';
-		ostr << '\n';
-	}
-	ostr << RequestNum << ' ' << '\n';
-	rep(i, 1, RequestNum) ostr << Request[i].a << ' ' << Request[i].b << ' ' << Request[i].c << ' ' << Request[i].d << ' ' << '\n';
-	data = ostr.str();
 }
 
 int color[MAX_PLAYER_COUNT][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
@@ -1725,6 +1728,8 @@ void Fight()
 		{
 			if (Pred[myID] == 0)
 			{
+				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
+				
 				Point[1] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
@@ -1739,6 +1744,8 @@ void Fight()
 			}
 			else
 			{
+				if (Poss(Count[i][5][2], Count[i][5][3]) <= 0.5) continue;
+				
 				Point[1] += Poss(Count[i][5][2], Count[i][5][3]) * -SkillCost*1.5;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 3);
@@ -1762,6 +1769,8 @@ void Fight()
 		{
 			if (Pred[myID] == 1)
 			{
+				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
+				
 				Point[2] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
@@ -1776,6 +1785,8 @@ void Fight()
 			}
 			else
 			{
+				if (Poss(Count[i][5][2], Count[i][5][3]) <= 0.5) continue;
+				
 				Point[2] += Poss(Count[i][5][2], Count[i][5][3]) * -SkillCost*1.5;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 3);
@@ -1799,6 +1810,8 @@ void Fight()
 		{
 			if (Pred[myID] == 2)
 			{
+				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
+				
 				Point[3] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
@@ -1813,6 +1826,8 @@ void Fight()
 			}
 			else
 			{
+				if (Poss(Count[i][5][2], Count[i][5][3]) <= 0.5) continue;
+				
 				Point[3] += Poss(Count[i][5][2], Count[i][5][3]) * -SkillCost*1.5;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 3);
@@ -1836,6 +1851,8 @@ void Fight()
 		{
 			if (Pred[myID] == 3)
 			{
+				if (Poss(Count[i][5][0], Count[i][5][1]) <= 0.3) continue;
+				
 				Point[4] += Poss(Count[i][5][0], Count[i][5][1]) * -SkillCost*1.5;
 				
 				Request[++RequestNum] = Addreq(i, -1, 5, 1);
@@ -1902,7 +1919,7 @@ bool way_cmp(Way a, Way b){return a.score > b.score;}
 void Init(int o)
 {
 	rep(i, 0, gameField.height-1) rep(j, 0, gameField.width-1) rep(a, 0, MAX_PLAYER_COUNT-1) rep(b, 0, MAX_SEARCH-1) 
-		Bean[o][i][j][a][b] = 0, Appear[o][i][j][a][b] = Pdd(0,0);
+		eat[o][i][j][a][b] = 0, Appear[o][i][j][a][b] = Pdd(0,0);
 }
 
 inline Pacman::Direction Final(Pro a)
@@ -1930,18 +1947,47 @@ bool tmpdead[MAX_PLAYER_COUNT]; int tmpCount;
 
 int ddd[10009];
 
-bool cmp_ddd(int a, int b){return Ways[a].pos > Ways[b].pos;}
+bool cmp_ddd(int a, int b){return Ways[a].score > Ways[b].score;}
 
-#define opp_A 3
-#define opp_B 1000
+#define opp_A 6
+#define opp_B 20
+#define opp_C std::min(WayCount,100)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 int main()
 {
 	ppow[0] = 1; rep(i, 1, 50) ppow[i] = ppow[i-1] * 0.95;
-	ppow2[0] = 1; rep(i, 1, 50) ppow2[i] = ppow2[i-1] * 0.5;
+	ppow2[0] = 1; rep(i, 1, 50) ppow2[i] = ppow2[i-1] * 0.88;
+	ppow3[0] = 1; rep(i, 1, 50) ppow3[i] = ppow3[i-1] * 0.5;
 
-							 // 如果在本地调试，有input.txt则会读取文件内容作为输入
-							 // 如果在平台上，则不会去检查有无input.txt
 	myID = gameField.ReadInput("input.txt", data, globalData); // 输入，并获得自己ID
 	
 	rep(i, 1, 50) Rand();
@@ -1963,26 +2009,28 @@ int main()
 	
 	DealWithInputData();
 	
-	Block();
+	CountDis();
 	DeathPlace();
 	WallMap();
 	Candy();
 	
-	rep(i, 0, 3) if (i != myID && gameField.players[i].strength > gameField.players[myID].strength)
+	/* rep(i, 0, 3) if (i != myID && gameField.players[i].strength > gameField.players[myID].strength)
 	{
 		for (Pacman::Direction d = Pacman::stay; d < 4; ++d)
 			if (gameField.ActionValid(i, d) && GO(Pii(gameField.players[i].row,gameField.players[i].col), d) == Pii(gameField.players[myID].row,gameField.players[myID].col))
 				danger = true;
-	}
+	} */
 	
-	rep(Round, 0, opp_A-1)
+	int opp_D = 1;
+	rep(Round, 1, opp_A)
 	{
-		Init(page^=1); if (Round == 1) Init(page^=1);
+		if (Round != 1) Init(page ^= 1); else 
+			rep(i, 0, 3) if (!gameField.players[i].dead)
+				Appear[page^1][gameField.players[i].row][gameField.players[i].col][i][0] = Pdd(gameField.players[i].strength,1);
 		
-		rep(PlayerID, 0, 3)
+		rep(PlayerID, 0, 3) if (!gameField.players[PlayerID].dead)
 		{
-			if (gameField.players[PlayerID].dead)
-				continue;
+			Bean(PlayerID, Round);
 			
 			tmpCount = gameField.aliveCount, gameField.aliveCount = 2;
 			rep(i, 0, MAX_PLAYER_COUNT-1) if (i!=PlayerID)
@@ -1995,7 +2043,7 @@ int main()
 			
 			WayCount = 0; PlayerPro[PlayerID] = emptyPro;
 			
-			rep(i, 1, opp_B) for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d))
+			rep(i, 1, std::max(opp_B,opp_D)) for (Pacman::Direction d = Pacman::stay; d < 4; ++d) if (gameField.ActionValid(PlayerID, d))
 			{
 				Way &now = Ways[++WayCount]; now = emptyWay;
 				now.strength[0] = gameField.players[PlayerID].strength;
@@ -2012,43 +2060,61 @@ int main()
 				gameField.players[i].dead = tmpdead[i];
 			}
 			
-			double Small = 1e90, Big = -1e90;
-			rep(i, 1, WayCount) Small = std::min(Small, Ways[i].score), Big = std::max(Big, Ways[i].score);
-			rep(i, 1, WayCount) Ways[i].pos = Between(Small, Big, Ways[i].score), ddd[i] = i;
+			rep(i, 1, WayCount) ddd[i] = i;
 			std::sort(ddd+1, ddd+1+WayCount, cmp_ddd);
+			double Small = Ways[ddd[opp_C]].score, Big = Ways[ddd[1]].score;
 			double d = 1, All = 0;
-			rep(i, 1, WayCount) if (i == 1 || Ways[ddd[i-1]].score - Ways[ddd[i]].score > 1e-6)
-				Ways[ddd[i]].pos *= d, All += Ways[ddd[i]].pos, d *= 0.95;
-			else
-				Ways[ddd[i]].pos = 0;
-			rep(i, 1, WayCount) Ways[i].pos /= All;
+			rep(i, 1, opp_C) Ways[ddd[i]].pos = Between(Small, Big, Ways[ddd[i]].score) * d, All += Ways[ddd[i]].pos, d *= 0.95;
+			rep(i, 1, opp_C) Ways[ddd[i]].pos /= All;
 			
-			rep(i, 1, WayCount)
+			
+			
+			
+/* #ifndef _BOTZONE_ONLINE
+			if (PlayerID == myID && Round == 3) rep(i, 1, opp_C)
 			{
-				Way &g = Ways[i]; 
+				printf("Way %d(%d): %.6lf ", i, ddd[i], Ways[ddd[i]].score);
+				rep(j, 1, Ways[ddd[i]].length) printf("%d ", Ways[ddd[i]].act[j]);
+				puts("");
+			}
+#endif */
+			
+			
+			
+			rep(i, 1, opp_C)
+			{
+				Way &g = Ways[ddd[i]]; 
 				PlayerPro[PlayerID].d[g.act[1]+1] += g.pos;
 				
-				rep(tmp, 0, g.length)
+				if (g.pos > 0) rep(tmp, 0, g.length)
+					Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + g.pos),
+					Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se += g.pos;
+				
+				rep(tmp, 1, g.length)
 				{
-					Bean[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp] += g.pos;
-					rep(j, tmp+1, g.length) 
-						if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
-							Bean[page][g.x[tmp]][g.y[tmp]][PlayerID][j] += g.pos;
-					if (g.pos > 0)
-						Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + g.pos),
-						Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se += g.pos;
+					int a = g.strength[tmp] - g.strength[tmp-1];
+					while (a < 0) a += gameField.LARGE_FRUIT_ENHANCEMENT;
+					
+					if (a > 0)
+					{
+						eat[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp] += g.pos;
+						rep(j, tmp+1, g.length+1) 
+							if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
+								eat[page][g.x[tmp]][g.y[tmp]][PlayerID][j] += g.pos;
+					}
 				}
 			}
 		}
 		
+		opp_D *= 4;
+		
 #ifndef _BOTZONE_ONLINE
 		rep(i, 0, 4) printf("%.5lf%c", PlayerPro[myID].d[i], i==4?'\n':' ');
 #endif
-
 	}
 	
 	
-	Fight();
+	/* Fight();
 	
 	tmpCount = gameField.aliveCount, gameField.aliveCount = 2;
 	rep(i, 0, 3) if (i!=myID)
@@ -2086,39 +2152,54 @@ int main()
 		if (Point[FightMX] > 0.1 && gameField.players[myID].strength > SkillCost && !danger) Ways[i].score += Point[FightMX];
 	}
 	
-	double Small = 1e90, Big = -1e90;
-	rep(i, 1, WayCount) Small = std::min(Small, Ways[i].score), Big = std::max(Big, Ways[i].score);
-	rep(i, 1, WayCount) Ways[i].pos = Between(Small, Big, Ways[i].score), ddd[i] = i;
+	rep(i, 1, WayCount) ddd[i] = i;
 	std::sort(ddd+1, ddd+1+WayCount, cmp_ddd);
+	double Small = Ways[ddd[opp_C]].score, Big = Ways[ddd[1]].score;
 	double d = 1, All = 0;
-	rep(i, 1, WayCount) if (i == 1 || Ways[ddd[i-1]].score - Ways[ddd[i]].score > 1e-6)
-		Ways[ddd[i]].pos *= d, All += Ways[ddd[i]].pos, d *= 0.95;
-	else
-		Ways[ddd[i]].pos = 0;
-	rep(i, 1, WayCount) Ways[i].pos /= All;
+	rep(i, 1, opp_C) Ways[ddd[i]].pos = Between(Small, Big, Ways[ddd[i]].score) * d, All += Ways[ddd[i]].pos, d *= 0.95;
+	rep(i, 1, opp_C) Ways[ddd[i]].pos /= All;
 	
-	rep(i, 1, WayCount)
+#ifndef _BOTZONE_ONLINE
+	rep(i, 1, opp_C)
 	{
-		Way &g = Ways[i]; 
+		printf("Way %d(%d): %.6lf ", i, ddd[i], Ways[ddd[i]].score);
+		rep(j, 1, Ways[ddd[i]].length) printf("%d ", Ways[ddd[i]].act[j]);
+		puts("");
+	}
+#endif
+	
+	rep(i, 1, opp_C)
+	{
+		Way &g = Ways[ddd[i]]; 
 		now.d[g.act[1]+1] += g.pos;
 		
-		rep(tmp, 0, g.length)
+		if (g.pos > 0) rep(tmp, 0, g.length)
 		{
-			Bean[page][g.x[tmp]][g.y[tmp]][myID][tmp] += g.pos;
-			rep(j, tmp+1, g.length) 
-				if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
-					Bean[page][g.x[tmp]][g.y[tmp]][myID][j] += g.pos;
-			if (g.pos > 0)
-				Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + g.pos),
-				Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se += g.pos;
+			Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + g.pos),
+			Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se += g.pos;
+		}
+		
+		rep(tmp, 1, g.length)
+		{
+			int a = g.strength[tmp] - g.strength[tmp-1];
+			while (a < 0) a += gameField.LARGE_FRUIT_ENHANCEMENT;
+			
+			if (a > 0)
+			{
+				eat[page][g.x[tmp]][g.y[tmp]][myID][tmp] += g.pos;
+				rep(j, tmp+1, g.length+1) 
+					if ((tmp+gameField.turnID)/Interval == (j+gameField.turnID)/Interval)
+						eat[page][g.x[tmp]][g.y[tmp]][myID][j] += g.pos;
+			}
 		}
 	}
 	
 	
 #ifndef _BOTZONE_ONLINE
 	rep(i, 0, 4) printf("%.5lf%c", now.d[i], i==4?'\n':' ');
-#endif
+#endif */
 	
+	Pro now = PlayerPro[myID];
 	
 	DealWithOutputData();
 	
