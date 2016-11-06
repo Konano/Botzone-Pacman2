@@ -1238,7 +1238,7 @@ inline void Bean(int o, int R)
 	bool lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH]; clr(lb,0); 
 	rep(a, 0, h-1) rep(b, 0, w-1) if (gameField.fieldStatic[a][b] & 16) rep(c, -1, 1) rep(d, -1, 1) if (c!=0 || d!=0)
 		lb[(a+c+h)%h][(b+d+w)%w] = 1;
-	rep(x, 0, h-1) rep(y, 0, w-1) if (lb[x][y] && BeginturnID/Interval == 0 && (BeginturnID+Dis[x][y][xx][yy])/Interval) rep(r, 0, R-1)
+	rep(x, 0, h-1) rep(y, 0, w-1) if (lb[x][y] && BeginturnID/Interval+1 == (BeginturnID+Dis[x][y][xx][yy])/Interval) rep(r, 0, R-1)
 	{
 		rep(i, 0, h-1) rep(j, 0, w-1) if (Dis[x][y][i][j] != inf && Dis[x][y][xx][yy] > Dis[x][y][i][j])
 			BeanScore[i][j][r] += log(Dis[x][y][xx][yy]-Dis[x][y][i][j]+1)/log(Dis[x][y][xx][yy]+1)*ppow[Interval-BeginturnID-r];
