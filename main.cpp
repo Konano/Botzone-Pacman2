@@ -1003,10 +1003,9 @@ int Apple[409], Deep[409];
 
 inline void DeathPlace()
 {
-	int lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH];
+	int lb[FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH]; clr(lb,0);
 	
 	std::queue <Pii> q1, q2;
-	rep(i, 0, h-1) rep(j, 0, w-1) lb[i][j] = 0;
 	rep(i, 0, h-1) rep(j, 0, w-1) if ((gameField.fieldStatic[i][j] == 14) || (gameField.fieldStatic[i][j] == 13) || (gameField.fieldStatic[i][j] == 11) || (gameField.fieldStatic[i][j] == 7))
 		q1.push(Pii(i,j)), lb[i][j] |= 1;
 	while (true)
@@ -1019,7 +1018,7 @@ inline void DeathPlace()
 			rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
 			{
 				a = GO(a, d);
-				if (!lb[a.fi][a.se]) tmp++;
+				if (lb[a.fi][a.se] != 3) tmp++;
 				a = GO(a, d^2);
 			}
 			
@@ -1032,8 +1031,8 @@ inline void DeathPlace()
 					q1.push(a), lb[a.fi][a.se] |= 1, tmp--;
 				}
 				a = GO(a, d^2);
+				lb[a.fi][a.se] |= 2;
 			}
-			if (tmp == 0) lb[a.fi][a.se] |= 2;
 		}
 		if (fg) break;
 	}
