@@ -917,7 +917,7 @@ inline Pacman::Direction RandDirOne(Pro a)
 	
 	return v(mx-1);
 }
-inline double Poss(int a, int b){return 1.0*a/(a+b);}
+inline double Poss(int a, int b){if (a+b) return 1.0*a/(a+b); return 0;}
 
 inline Pii GO(Pii a, int d)
 {
@@ -1239,7 +1239,7 @@ inline double BeanScore(int x0, int y0, int x1, int y1, int R)
 		{
 			double d = 1;
 			rep(i, 0, 3) d *= 1 - eat[page^1][x][y][i][R+Dis[x][y][x0][y0]];
-			Ans += (1.0/Dis[x][y][x1][y1]-1.0/Dis[x][y][x0][y0]) * d;
+			Ans += (1.0/(Dis[x][y][x1][y1]+1)-1.0/(Dis[x][y][x0][y0]+1)) * d;
 		}
 	
 	for(int i=1, x=BeanWill[i].fi, y=BeanWill[i].se; i<=Bean2; i++, x=BeanWill[i].fi, y=BeanWill[i].se) 
@@ -1247,7 +1247,7 @@ inline double BeanScore(int x0, int y0, int x1, int y1, int R)
 		{
 			double d = 1;
 			rep(i, 0, 3) d *= 1 - eat[page^1][x][y][i][R+Dis[x][y][x0][y0]];
-			Ans += (1.0/Dis[x][y][x1][y1]-1.0/Dis[x][y][x0][y0]) * d;
+			Ans += (1.0/(Dis[x][y][x1][y1]+1)-1.0/(Dis[x][y][x0][y0]+1)) * d;
 		}
 	
 	return Ans;
@@ -2010,7 +2010,7 @@ int main()
 		data = "";
 		rep(i, 1, 3)
 		{
-			data += "1 0 0 1 1 0 1 0 0 1 0 1 0 1 1 0 1 1 0 1 0 1 1 1 ";
+			data += "1 0 0 1 1 0 1 0 0 1 0 1 0 0 0 0 1 1 0 0 0 0 0 0 ";
 			data += '\n';
 		}
 		data += "0";
