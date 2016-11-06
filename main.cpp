@@ -53,7 +53,7 @@ using std::runtime_error;
 #ifdef _BOTZONE_ONLINE
 	unsigned int RR = time(0);
 #else
-	unsigned int RR = 1478357696;
+	unsigned int RR = 1478417566;
 #endif
 
 inline double Rand()
@@ -1317,7 +1317,7 @@ inline void MC(Way &now, int PlayerID, int Round)
 		if (tmp == gameField.LARGE_FRUIT_ENHANCEMENT) tmp /= 2;
 		tmp *= 3;
 		//if (tmp == 0) tmp = -1;
-		now.score += tmp * (1.0/L+1);
+		now.score += tmp * 1/L;
 		now.score += BeanScore[now.x[L]][now.y[L]][L-1];
 		
 		double mn = 1e90;
@@ -1325,9 +1325,9 @@ inline void MC(Way &now, int PlayerID, int Round)
 			mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
 		if (mn == 1e90) mn = 0;
 		if (PlayerID == myID)
-			now.score += mn * (mn < 0 ? 10 : 0) * log(MAX_SEARCH-L) * (Round*0.5);
+			now.score += mn * (mn < 0 ? 10 : 0) * log(MAX_SEARCH-L) * (Round*0.2);
 		else
-			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L) * (Round*0.3);
+			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L) * (Round*0.1);
 		
 		if (Pre(now)>=0 && now.act[L] == Pre(now)) now.score -= 3;
 		if (now.act[L] == -1) now.score -= 1.5;
