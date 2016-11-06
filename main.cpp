@@ -1018,20 +1018,20 @@ inline void DeathPlace()
 			Pii a = q1.front(); q1.pop(); int tmp = 0;
 			rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
 			{
-				GO(a, d);
+				a = GO(a, d);
 				if (!lb[a.fi][a.se]) tmp++;
-				GO(a, d^2);
+				a = GO(a, d^2);
 			}
 			
 			if (tmp > 1) q2.push(a);
 			if (tmp == 1) rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
 			{
-				GO(a, d); if (!lb[a.fi][a.se])
+				a = GO(a, d); if (!lb[a.fi][a.se])
 				{
 					fg = false;
 					q1.push(a), lb[a.fi][a.se] |= 1, tmp--;
 				}
-				GO(a, d^2);
+				a = GO(a, d^2);
 			}
 			if (tmp == 0) lb[a.fi][a.se] |= 2;
 		}
@@ -1044,7 +1044,7 @@ inline void DeathPlace()
 		Pii a = q2.front(); q2.pop(); Pii b = a;
 		rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
 		{
-			GO(a, d); if (lb[a.fi][a.se] == 3)
+			a = GO(a, d); if (lb[a.fi][a.se] == 3)
 			{
 				q1.push(a);
 				DeathMap[a.fi][a.se] = Pii(1,++tmp);
@@ -1053,7 +1053,7 @@ inline void DeathPlace()
 				Deep[tmp] = 1;
 				lb[a.fi][a.se] = 4;
 			}
-			GO(a, d^2);
+			a = GO(a, d^2);
 		}
 	}
 	while (!q1.empty())
@@ -1061,7 +1061,7 @@ inline void DeathPlace()
 		Pii a = q1.front(); q1.pop(); Pii tmp = DeathMap[a.fi][a.se]; Pii b = Control[a.fi][a.se];
 		rep(d, 0, 3) if (gameField.fieldStatic[a.fi][a.se] & (1<<d)) continue; else
 		{
-			GO(a, d); if (lb[a.fi][a.se] == 3 && DeathMap[a.fi][a.se].fi == 0)
+			a = GO(a, d); if (lb[a.fi][a.se] == 3 && DeathMap[a.fi][a.se].fi == 0)
 			{
 				q1.push(a);
 				DeathMap[a.fi][a.se] = tmp, DeathMap[a.fi][a.se].fi++;
@@ -1070,7 +1070,7 @@ inline void DeathPlace()
 				Deep[DeathMap[a.fi][a.se].se] = std::max(Deep[DeathMap[a.fi][a.se].se], DeathMap[a.fi][a.se].fi);
 				lb[a.fi][a.se] = 4;
 			}
-			GO(a, d^2);
+			a = GO(a, d^2);
 		}
 	}
 }
@@ -1174,20 +1174,20 @@ inline void Candy()
 		Pii a = Pii(gameField.players[o].row,gameField.players[o].col);
 		rep(d, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<d)) == 0)
 		{
-			GO(a, d);
+			a = GO(a, d);
 			if (DeathMap[a.fi][a.se].fi && gameField.players[o].strength + Apple[DeathMap[a.fi][a.se].se] < gameField.players[myID].strength)
 			{
 				if (gameField.aliveCount == 2 || Deep[DeathMap[a.fi][a.se].se] <= 3)
 				{
 					rep(dd, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<dd)) == 0)
 					{
-						GO(a, dd);
+						a = GO(a, dd);
 						FirstRoundMap[a.fi][a.se] += 50;
-						GO(a, dd^2);
+						a = GO(a, dd^2);
 					}
 				}
 			}
-			GO(a, d^2);
+			a = GO(a, d^2);
 		}
 		if (DeathMap[a.fi][a.se].fi && gameField.players[o].strength + Apple[DeathMap[a.fi][a.se].se] < gameField.players[myID].strength)
 		{
@@ -1195,9 +1195,9 @@ inline void Candy()
 			{
 				rep(dd, 0, 3) if ((gameField.fieldStatic[a.fi][a.se] & (1<<dd)) == 0)
 				{
-					GO(a, dd);
+					a = GO(a, dd);
 					FirstRoundMap[a.fi][a.se] += 30;
-					GO(a, dd^2);
+					a = GO(a, dd^2);
 				}
 			}
 		}
