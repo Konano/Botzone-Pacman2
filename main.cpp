@@ -1271,10 +1271,11 @@ struct Way
 	int length, act[MAX_SEARCH], x[MAX_SEARCH], y[MAX_SEARCH], strength[MAX_SEARCH]; double score, pos;
 } Ways[10009], emptyWay;
 
-inline int Pre(Way &now, int PlayerID, int L)
+inline int Pre(Way &now, int L)
 {
 	int a;
-	if (L == 0) a = gameField.backtrack[gameField.turnID-1].actions[PlayerID]; 
+	//if (L == 0) a = gameField.backtrack[gameField.turnID-1].actions[PlayerID]; 
+	if (L == 0) a = -1; 
 	else a = now.act[L];
 	if (a == -1) return -1;
 	return a^2;
@@ -1305,7 +1306,7 @@ inline void MC(Way &now, int PlayerID, int Round)
 			rep(d, 0, 3) if (valid.d[d+1]) valid.d[d+1]+=valid.d[0]/10*9/(vCount-1);
 			valid.d[0] /= 10;
 		}
-		int Back = Pre(now,PlayerID,L);
+		int Back = Pre(now,L);
 		if (0<=Back && valid.d[Back+1])
 		{
 			rep(d, -1, 3) if (d!=Back && valid.d[d+1]) valid.d[d+1]+=valid.d[Back+1]/10*9/(vCount-1);
@@ -1354,6 +1355,7 @@ inline void MC(Way &now, int PlayerID, int Round)
 		
 		if (Back>=0 && now.act[L] == Back) 
 			now.score -= 2;
+		if (now.act[L] == -1) now.score -= 0.15;
 		
 		if (PlayerID == myID && Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
 			now.score -= 10 * ppow3[L-1];
@@ -1499,6 +1501,8 @@ void Fight()
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 0 || Pred[myID] == 2))
 				{
+					if (Poss(Count[i][a][4], Count[i][a][5]) < 0.3) goto break1;
+					
 					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * ((inc(gameField.players[i].row,h) == x && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
 					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
@@ -1541,7 +1545,7 @@ void Fight()
 				}
 			}
 			
-			if (s > SkillCost)
+			break1: if (s > SkillCost)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15))))
 				{
@@ -1571,6 +1575,8 @@ void Fight()
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 0 || Pred[myID] == 2))
 				{
+					if (Poss(Count[i][a][4], Count[i][a][5]) < 0.3) goto break2;
+					
 					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
@@ -1613,7 +1619,7 @@ void Fight()
 				}
 			}
 			
-			if (s > SkillCost)
+			break2: if (s > SkillCost)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 0 && (color[myID][dec(gameField.players[i].row,h)][gameField.players[i].col] & 15)) || (Pred[i] == 2 && (color[myID][inc(gameField.players[i].row,h)][gameField.players[i].col] & 15))))
 				{
@@ -1643,6 +1649,8 @@ void Fight()
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 1 || Pred[myID] == 3))
 				{
+					if (Poss(Count[i][a][4], Count[i][a][5]) < 0.3) goto break3;
+					
 					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
 					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * ((dec(gameField.players[i].col,w) == y && s >= gameField.players[i].strength) ? 0 : -SkillCost*2);
@@ -1685,7 +1693,7 @@ void Fight()
 				}
 			}
 			
-			if (s > SkillCost)
+			break3: if (s > SkillCost)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15))))
 				{
@@ -1715,6 +1723,8 @@ void Fight()
 			{
 				if ((a & 1) && (Pred[myID] == -1 || Pred[myID] == 1 || Pred[myID] == 3))
 				{
+					if (Poss(Count[i][a][4], Count[i][a][5]) < 0.3) goto break4;
+					
 					Point[0] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
 					Point[1] += Poss(Count[i][a][4], Count[i][a][5]) * 0;
 					Point[2] += Poss(Count[i][a][4], Count[i][a][5]) * -SkillCost*2;
@@ -1757,7 +1767,7 @@ void Fight()
 				}
 			}
 			
-			if (s > SkillCost)
+			break4: if (s > SkillCost)
 			{
 				if ((a & 2) && (Pred[i] == -1 || (Pred[i] == 1 && (color[myID][gameField.players[i].row][inc(gameField.players[i].col,w)] & 15)) || (Pred[i] == 3 && (color[myID][gameField.players[i].row][dec(gameField.players[i].col,w)] & 15))))
 				{
