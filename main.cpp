@@ -1223,9 +1223,9 @@ inline void Candy()
 
 double ppow[59], ppow2[59], ppow3[59];
 	
-double eat[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][MAX_SEARCH];
+double eat[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][109];
 
-Pdd Appear[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][MAX_SEARCH];
+Pdd Appear[2][FIELD_MAX_HEIGHT][FIELD_MAX_WIDTH][MAX_PLAYER_COUNT][109];
 
 int page = 0, WayCount;
 
@@ -1998,7 +1998,7 @@ bool way_cmp(Way a, Way b){return a.score > b.score;}
 
 void Init(int o)
 {
-	rep(i, 0, gameField.height-1) rep(j, 0, gameField.width-1) rep(a, 0, MAX_PLAYER_COUNT-1) rep(b, 0, MAX_SEARCH-1) 
+	rep(i, 0, gameField.height-1) rep(j, 0, gameField.width-1) rep(a, 0, MAX_PLAYER_COUNT-1) rep(b, 0, 100) 
 		eat[o][i][j][a][b] = 0, Appear[o][i][j][a][b] = Pdd(0,0);
 }
 
