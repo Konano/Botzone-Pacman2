@@ -1349,19 +1349,19 @@ inline void MC(Way &now, int PlayerID, int Round)
 			mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
 		if (mn == 1e90) mn = 0;
 		if (PlayerID == myID)
-			now.score += mn * (mn < 0 ? 10 : 0) * log(MAX_SEARCH-L) * (Round*0.2);
+			now.score += mn * (mn < 0 ? 10 : 0) * log(MAX_SEARCH-L);
 		else
-			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L) * (Round*0.1);
+			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L);
 		
 		if (Back>=0 && now.act[L] == Back) 
 			now.score -= 2;
 		if (now.act[L] == -1) now.score -= 0.15;
 		
 		if (PlayerID == myID && Wall[now.x[L]][now.y[L]].fi && Wall[now.x[L]][now.y[L]].fi+1-std::max(Wall[now.x[L]][now.y[L]].se-L,0)>=2)
-			now.score -= 10 * ppow3[L-1];
+			now.score -= 10 * ppow2[L-1];
 		
 		if (PlayerID == myID && DeathMap[now.x[L]][now.y[L]].fi && DeathMap[now.x[L]][now.y[L]].fi+1-std::max(DeathShort[now.x[L]][now.y[L]]-1-L,0)>=2)
-			now.score -= 10 * ppow3[L-1];
+			now.score -= 10 * ppow2[L-1];
 	}
 	
 	while (L--) gameField.PopState();
@@ -2161,8 +2161,8 @@ int main()
 				PlayerPro[PlayerID].d[g.act[1]+1] += g.pos;
 				
 				if (g.pos > 0) rep(tmp, 0, g.length)
-					Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se + g.pos),
-					Appear[page][g.x[tmp]][g.y[tmp]][myID][tmp].se += g.pos;
+					Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi = (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].fi * Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + (tmp ? g.strength[tmp-1] : g.strength[tmp]) * g.pos) / (Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se + g.pos),
+					Appear[page][g.x[tmp]][g.y[tmp]][PlayerID][tmp].se += g.pos;
 				
 				rep(tmp, 1, g.length)
 				{
