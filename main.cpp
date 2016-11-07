@@ -1349,9 +1349,9 @@ inline void MC(Way &now, int PlayerID, int Round)
 			mn = std::min(mn, erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L].se * ppow[L] + erf((now.strength[L] - Appear[page^1][now.x[L]][now.y[L]][i][L-1].fi-1)/2) * Appear[page^1][now.x[L]][now.y[L]][i][L-1].se * ppow[L-1]);
 		if (mn == 1e90) mn = 0;
 		if (PlayerID == myID)
-			now.score += mn * (mn < 0 ? 10 : 0) * log(MAX_SEARCH-L);
+			now.score += mn * (mn < 0 ? 2 : 0) * log(MAX_SEARCH-L);
 		else
-			now.score += mn * (mn < 0 ? 10 : 5) * log(MAX_SEARCH-L);
+			now.score += mn * (mn < 0 ? 5 : 5) * log(MAX_SEARCH-L);
 		
 		if (Back>=0 && now.act[L] == Back) 
 			now.score -= 2;
