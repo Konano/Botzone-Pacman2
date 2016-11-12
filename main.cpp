@@ -2038,7 +2038,7 @@ bool cmp_ddd(int a, int b){return Ways[a].score > Ways[b].score;}
 
 inline string DaCall(int o)
 {
-		if (o == 0) return "うぶ毛の小鸟たちも";
+	if (o == 0) return "うぶ毛の小鸟たちも";
 	if (o == 1) return "いつか空に羽ばたく";
 	if (o == 2) return "大きな强い翼で飞ぶ";
 	if (o == 3) return "谛めちゃダメなんだ";
