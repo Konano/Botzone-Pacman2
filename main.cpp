@@ -2131,6 +2131,7 @@ inline string DaCall(int o)
 	if (o == 97) return "でも世界は幸せを望んでる";
 	if (o == 98) return "だってだって";
 	if (o == 99) return "出会いの意味を感じたいの...噫無情！";
+	return "";
 }
 
 
